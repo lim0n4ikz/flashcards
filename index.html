@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Мой английский — мобильное приложение для изучения английских слов с карточками, профилями и интервальным повторением.">
+    <title>Мой английский — Flashcards</title>
+    <link rel="icon" href="assets/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #17221d;
+            --muted: #66766c;
+            --paper: #f3f7ed;
+            --cream: #fffdf5;
+            --lime: #d9ef63;
+            --mint: #9ce1c0;
+            --coral: #ff8d6b;
+            --line: rgba(23, 34, 29, .12);
+            --shadow: 0 24px 70px rgba(34, 67, 49, .16);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            min-height: 100vh;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: 'DM Sans', sans-serif;
+            overflow-x: hidden;
+        }
+        a { color: inherit; text-decoration: none; }
+        button { font: inherit; }
+
+        .site-shell { position: relative; max-width: 1180px; margin: 0 auto; padding: 24px; }
+        .site-shell::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background:
+                radial-gradient(circle at 8% 10%, rgba(217,239,99,.48), transparent 25%),
+                radial-gradient(circle at 92% 18%, rgba(156,225,192,.4), transparent 24%),
+                linear-gradient(135deg, #edf5e8 0%, #fffdf5 54%, #f7efe2 100%);
+        }
+        .site-shell::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: .25;
+            pointer-events: none;
+            background-image: linear-gradient(rgba(23,34,29,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(23,34,29,.05) 1px, transparent 1px);
+            background-size: 42px 42px;
+            mask-image: linear-gradient(to bottom, black, transparent 78%);
+        }
+
+        .nav {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 56px;
+        }
+        .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: -.03em; }
+        .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--ink); color: var(--lime); font-size: 20px; box-shadow: 5px 5px 0 rgba(23,34,29,.12); }
+        .nav-links { display: flex; align-items: center; gap: 24px; color: var(--muted); font-size: 14px; font-weight: 600; }
+        .nav-links a:hover { color: var(--ink); }
+        .nav-download { padding: 11px 17px; border-radius: 999px; color: var(--ink); background: var(--lime); transition: transform .2s ease, box-shadow .2s ease; }
+        .nav-download:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(116,137,45,.2); }
+
+        .hero { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(310px, .88fr); gap: 72px; align-items: center; padding: 32px 0 74px; min-width: 0; }
+        .hero > * { min-width: 0; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #70843d; font-size: 13px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+        .eyebrow::before { content: ''; width: 28px; height: 2px; background: var(--coral); }
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -.055em; }
+        h1 { max-width: 680px; font-size: clamp(3.4rem, 7vw, 6.4rem); line-height: .94; }
+        h1 em { color: #7f9b2e; font-style: normal; }
+        .hero-copy { max-width: 570px; margin-top: 26px; color: var(--muted); font-size: 18px; line-height: 1.65; }
+        .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 13px; margin-top: 32px; }
+        .button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 21px; border: 1px solid transparent; border-radius: 999px; font-size: 14px; font-weight: 700; transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+        .button:hover { transform: translateY(-2px); }
+        .button-primary { background: var(--ink); color: #f7ffe0; box-shadow: 0 12px 24px rgba(23,34,29,.2); }
+        .button-primary:hover { box-shadow: 0 16px 28px rgba(23,34,29,.28); }
+        .button-ghost { border-color: var(--line); color: var(--ink); background: rgba(255,255,255,.4); }
+        .button-ghost:hover { background: var(--cream); }
+
+        .hero-art { position: relative; min-height: 390px; }
+        .hero-art::before { content: ''; position: absolute; width: 275px; height: 275px; top: 46px; left: 45px; border-radius: 50%; background: var(--lime); transform: rotate(-12deg); }
+        .hero-art::after { content: 'A'; position: absolute; right: 20px; top: 20px; color: var(--coral); font-family: 'Space Grotesk'; font-size: 100px; font-weight: 700; transform: rotate(15deg); opacity: .75; }
+        .phone { position: absolute; z-index: 1; left: 50%; top: 2px; width: 242px; height: 370px; padding: 12px; border: 8px solid var(--ink); border-radius: 34px; background: var(--ink); box-shadow: 22px 25px 0 rgba(23,34,29,.13), var(--shadow); transform: rotate(6deg) translateX(-43%); }
+        .phone-screen { display: flex; flex-direction: column; height: 100%; padding: 22px 16px; border-radius: 21px; background: linear-gradient(155deg, #fcfff2, #dff2b8); overflow: hidden; }
+        .phone-notch { width: 58px; height: 12px; margin: -22px auto 26px; border-radius: 0 0 9px 9px; background: var(--ink); }
+        .phone-small { color: #79914b; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .phone h3 { margin-top: 8px; font-size: 25px; line-height: 1; }
+        .word-card { margin-top: 23px; padding: 24px 14px; border-radius: 17px; background: var(--cream); box-shadow: 0 12px 25px rgba(74,104,40,.13); text-align: center; }
+        .word-card strong { display: block; font-family: 'Space Grotesk'; font-size: 29px; }
+        .word-card span { display: block; margin-top: 7px; color: var(--muted); font-size: 13px; }
+        .phone-progress { height: 7px; margin-top: auto; border-radius: 8px; background: rgba(23,34,29,.12); overflow: hidden; }
+        .phone-progress::after { content: ''; display: block; width: 68%; height: 100%; border-radius: inherit; background: var(--coral); }
+        .spark { position: absolute; z-index: 2; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 20px; background: var(--coral); color: #fff9e9; font-size: 30px; box-shadow: 7px 8px 0 rgba(23,34,29,.12); }
+        .spark-one { top: 22px; left: 16px; transform: rotate(-14deg); }
+        .spark-two { right: 2px; bottom: 31px; transform: rotate(13deg); background: var(--mint); color: var(--ink); }
+
+        .section { padding: 60px 0; }
+        .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 25px; }
+        .section-heading h2 { max-width: 560px; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1; }
+        .section-heading p { max-width: 340px; color: var(--muted); line-height: 1.55; }
+        .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .feature { min-height: 190px; padding: 21px; border: 1px solid rgba(23,34,29,.1); border-radius: 18px; background: rgba(255,255,255,.46); transition: transform .2s ease, background .2s ease; }
+        .feature:hover { transform: translateY(-5px); background: var(--cream); }
+        .feature-icon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 30px; border-radius: 13px; background: var(--lime); font-size: 21px; }
+        .feature:nth-child(2) .feature-icon { background: var(--mint); }
+        .feature:nth-child(3) .feature-icon { background: #ffd7a9; }
+        .feature:nth-child(4) .feature-icon { background: #ffb9a4; }
+        .feature h3 { font-size: 18px; letter-spacing: -.03em; }
+        .feature p { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+        .learning { display: grid; grid-template-columns: .82fr 1.18fr; gap: 30px; align-items: stretch; }
+        .learning-intro { padding: 34px; border-radius: 23px; background: var(--ink); color: #f5f8e9; }
+        .learning-intro h2 { margin-bottom: 16px; font-size: 38px; line-height: 1; }
+        .learning-intro p { color: #afbbb0; line-height: 1.6; }
+        .mini-stat { display: flex; justify-content: space-between; align-items: center; margin-top: 50px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.15); color: #afbbb0; font-size: 13px; }
+        .mini-stat strong { color: var(--lime); font-family: 'Space Grotesk'; font-size: 28px; }
+        .mode-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .mode { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,253,245,.66); }
+        .mode-number { color: var(--coral); font-family: 'Space Grotesk'; font-size: 13px; font-weight: 700; }
+        .mode h3 { margin-top: 21px; font-size: 19px; }
+        .mode p { margin-top: 7px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+        .privacy { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 31px; border: 1px solid rgba(23,34,29,.1); border-radius: 22px; background: rgba(156,225,192,.35); }
+        .privacy h2 { font-size: 32px; }
+        .privacy p { color: #53675a; line-height: 1.6; }
+        .privacy-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .privacy-list span { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.55); font-size: 13px; font-weight: 600; }
+
+        .release { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 26px 0 56px; padding: 34px; border-radius: 24px; background: var(--lime); box-shadow: 12px 14px 0 rgba(23,34,29,.1); }
+        .release h2 { font-size: 34px; }
+        .release p { margin-top: 8px; color: #5f7035; }
+        .release .button { background: var(--ink); color: var(--lime); white-space: nowrap; }
+        footer { display: flex; justify-content: space-between; gap: 20px; padding: 20px 0 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+
+        .reveal { opacity: 0; transform: translateY(18px); animation: reveal .7s ease forwards; }
+        .delay-1 { animation-delay: .1s; } .delay-2 { animation-delay: .2s; } .delay-3 { animation-delay: .3s; }
+        @keyframes reveal { to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 800px) {
+            .hero, .learning { grid-template-columns: 1fr; gap: 30px; }
+            .hero-art { min-height: 370px; max-width: 450px; width: 100%; margin: 0 auto; }
+            .feature-grid { grid-template-columns: repeat(2, 1fr); }
+            .privacy { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 560px) {
+            .site-shell { padding: 17px; }
+            .nav { margin-bottom: 30px; }
+            .nav-links a:not(.nav-download) { display: none; }
+            .hero { padding-top: 20px; }
+            h1 { font-size: 3.2rem; }
+            .hero-copy { font-size: 16px; }
+            .feature-grid, .mode-list, .privacy-list { grid-template-columns: 1fr; }
+            .section { padding: 42px 0; }
+            .section-heading { display: block; }
+            .section-heading p { margin-top: 14px; }
+            .release { display: block; padding: 25px; }
+            .release .button { margin-top: 20px; }
+            footer { display: block; line-height: 1.8; }
+            .phone { transform: rotate(5deg) translateX(-50%); }
+            .hero-art::before { left: 50%; transform: translateX(-50%) rotate(-12deg); }
+        }
+    </style>
+</head>
+<body>
+    <main class="site-shell">
+        <nav class="nav reveal">
+            <a class="brand" href="#top"><span class="brand-mark">A</span><span>Мой английский</span></a>
+            <div class="nav-links">
+                <a href="#features">Возможности</a>
+                <a href="#learning">Обучение</a>
+                <a class="nav-download" href="https://github.com/lim0n4ikz/Lim0n4ikzGamesClicker/releases/download/clickerv2.0/Lim0n4ikzGamesClickerSetup.exe">Скачать приложение</a>
+            </div>
+        </nav>
+
+        <section class="hero" id="top">
+            <div class="reveal delay-1">
+                <div class="eyebrow">English learning, your way</div>
+                <h1>Слова, которые <em>запоминаются.</em></h1>
+                <p class="hero-copy">«Мой английский» помогает учить новые слова в удобном темпе: создавайте свои словари, повторяйте карточки и видьте настоящий прогресс.</p>
+                <div class="hero-actions">
+                    <a class="button button-primary" href="https://github.com/lim0n4ikz/Lim0n4ikzGamesClicker/releases/download/clickerv2.0/Lim0n4ikzGamesClickerSetup.exe">↓ Скачать файл</a>
+                    <a class="button button-ghost" href="#features">Узнать больше ↓</a>
+                </div>
+            </div>
+            <div class="hero-art reveal delay-2" aria-label="Предпросмотр карточки слова">
+                <div class="spark spark-one">✦</div>
+                <div class="spark spark-two">✓</div>
+                <div class="phone">
+                    <div class="phone-screen">
+                        <div class="phone-notch"></div>
+                        <span class="phone-small">Сегодня учим</span>
+                        <h3>Мой прогресс</h3>
+                        <div class="word-card"><strong>resilient</strong><span>стойкий · устойчивый</span></div>
+                        <div class="phone-progress"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="features">
+            <div class="section-heading reveal">
+                <h2>Всё нужное для уверенного словаря</h2>
+                <p>Минимум лишнего, максимум контроля над тем, что и как вы учите.</p>
+            </div>
+            <div class="feature-grid">
+                <article class="feature reveal delay-1"><div class="feature-icon">👤</div><h3>Свои профили</h3><p>Отдельные слова и прогресс для каждого пользователя.</p></article>
+                <article class="feature reveal delay-1"><div class="feature-icon">🎴</div><h3>Карточки</h3><p>Переворачивайте карточки и отмечайте, что уже запомнили.</p></article>
+                <article class="feature reveal delay-2"><div class="feature-icon">📊</div><h3>Статистика</h3><p>Следите за новыми, изученными и повторяемыми словами.</p></article>
+                <article class="feature reveal delay-2"><div class="feature-icon">📦</div><h3>Импорт и экспорт</h3><p>Добавляйте словари из TXT, CSV и JSON и сохраняйте резервные копии.</p></article>
+            </div>
+        </section>
+
+        <section class="section" id="learning">
+            <div class="learning">
+                <div class="learning-intro reveal">
+                    <h2>Учитесь в своём ритме.</h2>
+                    <p>Выбирайте подходящий режим и возвращайтесь к словам тогда, когда они действительно нужны.</p>
+                    <div class="mini-stat"><span>Режимы обучения</span><strong>04</strong></div>
+                </div>
+                <div class="mode-list">
+                    <article class="mode reveal delay-1"><span class="mode-number">01 / ALL</span><h3>Все слова</h3><p>Полный список слов активного профиля.</p></article>
+                    <article class="mode reveal delay-1"><span class="mode-number">02 / NEW</span><h3>Новые</h3><p>Сосредоточьтесь на словах, которые ещё не учили.</p></article>
+                    <article class="mode reveal delay-2"><span class="mode-number">03 / REVIEW</span><h3>На повторение</h3><p>Вернитесь к словам, которым нужно ещё немного времени.</p></article>
+                    <article class="mode reveal delay-2"><span class="mode-number">04 / DONE</span><h3>Запомненные</h3><p>Посмотрите, какой путь уже пройден.</p></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="privacy reveal">
+                <div><h2>Ваши данные остаются у вас.</h2><p>Приложение работает полностью локально, без обязательной регистрации, сервера и облачной синхронизации.</p></div>
+                <div class="privacy-list"><span>✓ Без аккаунта</span><span>✓ Без рекламы</span><span>✓ Локальное хранение</span><span>✓ Тёмная тема</span></div>
+            </div>
+        </section>
+
+        <section class="release reveal">
+            <div><h2>Начните учить сегодня</h2><p>Скачайте актуальную версию приложения из GitHub Releases.</p></div>
+            <a class="button" href="https://github.com/lim0n4ikz/flashcards-app/releases/tag/flashcards" target="_blank" rel="noopener">Открыть релиз ↗</a>
+        </section>
+
+        <footer><span>© 2026 Lim0n4ikzGames</span><span>Мой английский · Flashcards</span></footer>
+    </main>
+</body>
+</html>
