@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -17,6 +19,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfilesScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const [search, setSearch] = useState('');
 
   const {
     theme,
@@ -26,6 +29,10 @@ export default function ProfilesScreen() {
     deleteProfile,
   } = useApp();
 
+  const filteredProfiles = data.profiles.filter((profile) =>
+    profile.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
   return (
     <SafeAreaView
       style={[
@@ -33,7 +40,10 @@ export default function ProfilesScreen() {
         { backgroundColor: theme.background },
       ]}
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.title, { color: theme.text }]}>
           Профили
         </Text>
@@ -47,7 +57,44 @@ export default function ProfilesScreen() {
           Выбери профиль для обучения
         </Text>
 
-        {data.profiles.map((profile) => {
+        <TouchableOpacity
+          style={[
+            styles.createButton,
+            { backgroundColor: theme.primary },
+          ]}
+          onPress={() => navigation.navigate('ProfileForm')}
+        >
+          <Text
+            style={[
+              styles.createButtonText,
+              { color: theme.primaryText },
+            ]}
+          >
+            + Создать профиль
+          </Text>
+        </TouchableOpacity>
+
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Поиск профиля"
+          placeholderTextColor={theme.secondaryText}
+          style={[
+            styles.searchInput,
+            {
+              color: theme.text,
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        />
+
+        {filteredProfiles.length === 0 ? (
+          <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
+            Профили не найдены
+          </Text>
+        ) : (
+          filteredProfiles.map((profile) => {
           const isActive = profile.id === activeProfile?.id;
 
           return (
@@ -117,25 +164,10 @@ export default function ProfilesScreen() {
               </TouchableOpacity>
             </View>
           );
-        })}
+          })
+        )}
 
-        <TouchableOpacity
-          style={[
-            styles.createButton,
-            { backgroundColor: theme.primary },
-          ]}
-          onPress={() => navigation.navigate('ProfileForm')}
-        >
-          <Text
-            style={[
-              styles.createButtonText,
-              { color: theme.primaryText },
-            ]}
-          >
-            + Создать профиль
-          </Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -199,10 +231,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
+    marginBottom: 16,
   },
 
   createButtonText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  searchInput: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 15,
+    marginTop: 16,
   },
 });

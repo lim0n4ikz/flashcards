@@ -43,23 +43,33 @@ export default function WordsScreen() {
     addWord,
   } = useApp();
 
+  const scopedWords = useMemo(
+    () =>
+      focusedGroupId === null
+        ? activeProfileWords
+        : activeProfileWords.filter(
+            (word) => word.groupId === focusedGroupId
+          ),
+    [activeProfileWords, focusedGroupId]
+  );
+
   const counts = useMemo(
     () => ({
-      all: activeProfileWords.length,
-      new: activeProfileWords.filter((word) => word.status === 'new').length,
-      needsReview: activeProfileWords.filter(
+      all: scopedWords.length,
+      new: scopedWords.filter((word) => word.status === 'new').length,
+      needsReview: scopedWords.filter(
         (word) => word.status === 'needsReview'
       ).length,
-      remembered: activeProfileWords.filter(
+      remembered: scopedWords.filter(
         (word) => word.status === 'remembered'
       ).length,
     }),
-    [activeProfileWords]
+    [scopedWords]
   );
 
   const filteredWords = useMemo(
     () =>
-      activeProfileWords.filter((word) => {
+      scopedWords.filter((word) => {
         const query = search.trim().toLowerCase();
         const matchesSearch =
           !query ||
@@ -71,7 +81,7 @@ export default function WordsScreen() {
 
         return matchesSearch && matchesFilter && matchesGroup;
       }),
-    [activeProfileWords, filter, focusedGroupId, search]
+    [scopedWords, filter, search]
   );
 
   const focusedGroup = activeProfileWordGroups.find(
@@ -88,6 +98,14 @@ export default function WordsScreen() {
         ? current.filter((id) => id !== wordId)
         : [...current, wordId]
     );
+  };
+
+  const selectAllFilteredWords = () => {
+    setSelectedWordIds(filteredWords.map((word) => word.id));
+  };
+
+  const clearWordSelection = () => {
+    setSelectedWordIds([]);
   };
 
   if (!activeProfile) {
@@ -124,7 +142,7 @@ export default function WordsScreen() {
           <View>
             <Text style={[styles.title, { color: theme.text }]}>Слова</Text>
             <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
-              {activeProfile.name} · {activeProfileWords.length}
+              {activeProfile.name} · {scopedWords.length}
             </Text>
           </View>
 
@@ -418,35 +436,6 @@ export default function WordsScreen() {
               Переместить выделенные: {selectedWordIds.length}
             </Text>
 
-            <TouchableOpacity
-              style={[styles.deleteSelectedButton, { borderColor: theme.danger }]}
-              onPress={() => {
-                Alert.alert(
-                  'Удалить выделенные слова?',
-                  `Будут удалены слова: ${selectedWordIds.length}.`,
-                  [
-                    { text: 'Отмена', style: 'cancel' },
-                    {
-                      text: 'Удалить',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await Promise.all(
-                          selectedWordIds.map((wordId) =>
-                            deleteWord(wordId)
-                          )
-                        );
-                        setSelectedWordIds([]);
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <Text style={[styles.deleteSelectedText, { color: theme.danger }]}>
-                Удалить выделенные
-              </Text>
-            </TouchableOpacity>
-
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <TouchableOpacity
                 style={[
@@ -479,6 +468,35 @@ export default function WordsScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.deleteSelectedButton, { borderColor: theme.danger }]}
+              onPress={() => {
+                Alert.alert(
+                  'Удалить выделенные слова?',
+                  `Будут удалены слова: ${selectedWordIds.length}.`,
+                  [
+                    { text: 'Отмена', style: 'cancel' },
+                    {
+                      text: 'Удалить',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await Promise.all(
+                          selectedWordIds.map((wordId) =>
+                            deleteWord(wordId)
+                          )
+                        );
+                        setSelectedWordIds([]);
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={[styles.deleteSelectedText, { color: theme.danger }]}>
+                Удалить выделенные
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -548,6 +566,28 @@ export default function WordsScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {filteredWords.length > 0 && (
+          <View style={styles.selectionActions}>
+            <TouchableOpacity
+              style={[styles.selectionAction, { borderColor: theme.border }]}
+              onPress={selectAllFilteredWords}
+            >
+              <Text style={[styles.selectionActionText, { color: theme.primary }]}>
+                Выбрать все
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.selectionAction, { borderColor: theme.border }]}
+              onPress={clearWordSelection}
+            >
+              <Text style={[styles.selectionActionText, { color: theme.text }]}>
+                Отменить выбор
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {filteredWords.length === 0 ? (
           <View style={styles.emptyWordsBox}>
@@ -875,6 +915,28 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
+  },
+
+  selectionActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  selectionAction: {
+    flex: 1,
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+
+  selectionActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   filterChip: {
     borderWidth: 1,

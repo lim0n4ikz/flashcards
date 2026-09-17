@@ -18,7 +18,7 @@ export type RootStackParamList = {
     wordId?: string;
   } | undefined;
   Flashcards: {
-    mode?: 'all' | 'needsReview' | 'new';
+    mode?: 'all' | 'needsReview' | 'new' | 'remembered';
     groupId?: string | null;
   };
 };

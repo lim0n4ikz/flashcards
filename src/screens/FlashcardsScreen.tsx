@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/types';
 
@@ -8,6 +10,7 @@ type FlashcardsRouteProp = RouteProp<
   RootStackParamList,
   'Flashcards'
 >;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 import {
   StyleSheet,
@@ -21,6 +24,7 @@ import { useApp } from '../context/AppContext';
 import FlipCard from '../components/FlipCard';
 
 export default function FlashcardsScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<FlashcardsRouteProp>();
   const mode = route.params?.mode ?? 'all';
   const groupId = route.params?.groupId ?? null;
@@ -61,8 +65,23 @@ export default function FlashcardsScreen() {
       return filteredByGroup.filter((word) => word.status === 'new');
     }
 
+    if (mode === 'remembered') {
+      return filteredByGroup.filter(
+        (word) => word.status === 'remembered'
+      );
+    }
+
     return filteredByGroup;
   }, [activeProfileWords, groupId, mode]);
+
+  const filteredWords =
+    groupId === null
+      ? activeProfileWords
+      : activeProfileWords.filter((word) => word.groupId === groupId);
+  const allWordsRemembered =
+    mode === 'needsReview' &&
+    filteredWords.length > 0 &&
+    filteredWords.every((word) => word.status === 'remembered');
 
   useEffect(() => {
     setDeckWords(sourceWords);
@@ -141,6 +160,51 @@ export default function FlashcardsScreen() {
     nextCard();
     await markWordNeedsReview(wordId);
   };
+
+  if (allWordsRemembered) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
+        <View style={styles.empty}>
+          <Text style={[styles.emptyTitle, { color: theme.success }]}>
+            Все слова запомнены
+          </Text>
+
+          <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
+            В этой группе больше нет незапомненных слов.
+          </Text>
+
+          <View style={styles.emptyActions}>
+            <TouchableOpacity
+              style={[styles.emptyButton, { backgroundColor: theme.primary }]}
+              onPress={() =>
+                navigation.navigate('MainTabs', { screen: 'Learn' })
+              }
+            >
+              <Text style={[styles.emptyButtonText, { color: theme.primaryText }]}>
+                Вернуться к разделу обучение
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.emptyButton, { borderColor: theme.border }]}
+              onPress={() =>
+                navigation.replace('Flashcards', {
+                  mode: 'remembered',
+                  groupId,
+                })
+              }
+            >
+              <Text style={[styles.emptyButtonText, { color: theme.text }]}>
+                Повторить запомненные слова
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (activeProfileWords.length === 0 || sourceWords.length === 0) {
     return (
@@ -268,6 +332,15 @@ export default function FlashcardsScreen() {
           {currentIndex + 1} / {learningWords.length}
         </Text>
 
+        <View style={styles.cardContainer}>
+          <FlipCard
+            key={`${currentWord.id}-${learningDirection}`}
+            english={currentWord.english}
+            russian={currentWord.russian}
+            frontLanguage={learningDirection}
+          />
+        </View>
+
         <View style={styles.deckControls}>
           <TouchableOpacity
             style={[
@@ -298,15 +371,6 @@ export default function FlashcardsScreen() {
           >
             <Text style={[styles.arrowText, { color: theme.text }]}>→</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.cardContainer}>
-          <FlipCard
-            key={`${currentWord.id}-${learningDirection}`}
-            english={currentWord.english}
-            russian={currentWord.russian}
-            frontLanguage={learningDirection}
-          />
         </View>
 
         <Text
@@ -491,5 +555,26 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
     marginTop: 12,
+  },
+
+  emptyActions: {
+    width: '100%',
+    gap: 12,
+    marginTop: 24,
+  },
+
+  emptyButton: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+
+  emptyButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

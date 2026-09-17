@@ -16,12 +16,18 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useApp } from '../context/AppContext';
 import type { RootStackParamList } from '../navigation/types';
+import UpdateModal from '../components/UpdateModal';
 import {
   createJsonBackup,
   createWordsCsv,
   parseImportedFile,
   shareTextFile,
 } from '../storage/backup';
+import {
+  checkForUpdate,
+  getCurrentVersion,
+  type UpdateInfo,
+} from '../services/updateService';
 
 type NavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -45,6 +51,8 @@ export default function SettingsScreen() {
   const [profileName, setProfileName] = useState(
     activeProfile?.name ?? ''
   );
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   const handleStartEditing = () => {
     setProfileName(activeProfile?.name ?? '');
@@ -111,6 +119,23 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const handleCheckUpdates = async () => {
+    if (isCheckingUpdate) {
+      return;
+    }
+
+    setIsCheckingUpdate(true);
+    const update = await checkForUpdate();
+    setIsCheckingUpdate(false);
+
+    if (update) {
+      setUpdateInfo(update);
+      return;
+    }
+
+    Alert.alert('Обновлений нет', 'Установлена актуальная версия приложения.');
   };
 
   const getFileName = (extension: string) => {
@@ -718,6 +743,43 @@ export default function SettingsScreen() {
             },
           ]}
         >
+          Обновления
+        </Text>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.menuDescription, { color: theme.secondaryText }]}
+          >
+            Проверить наличие новой версии приложения
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+            onPress={handleCheckUpdates}
+            disabled={isCheckingUpdate}
+          >
+            <Text style={[styles.primaryButtonText, { color: theme.primaryText }]}>
+              {isCheckingUpdate ? 'Проверка...' : 'Проверить обновления'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.text,
+            },
+          ]}
+        >
           Импорт и резервная копия
         </Text>
 
@@ -805,9 +867,35 @@ export default function SettingsScreen() {
             },
           ]}
         >
-          Разработчик: lim0n4ikz
+          Разработчик: Lim0n4ikz
+        </Text>
+                <Text
+          style={[
+            styles.developer,
+            {
+              color: theme.secondaryText,
+            },
+          ]}
+        >
+          Компания: Lim0n4ikzGames
+        </Text>
+        
+        <Text
+          style={[
+            styles.developer,
+            {
+              color: theme.secondaryText,
+            },
+          ]}
+        >
+          v {getCurrentVersion()}
         </Text>
       </ScrollView>
+      <UpdateModal
+        theme={theme}
+        update={updateInfo}
+        onLater={() => setUpdateInfo(null)}
+      />
     </SafeAreaView>
   );
 }
