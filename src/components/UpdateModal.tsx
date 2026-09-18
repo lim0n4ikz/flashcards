@@ -64,7 +64,7 @@ export default function UpdateModal({
           </Text>
 
           <Text style={[styles.changesTitle, { color: theme.text }]}>
-            Что нового:
+            Что изменилось:
           </Text>
 
           <ScrollView

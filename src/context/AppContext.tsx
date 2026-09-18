@@ -39,7 +39,7 @@ interface AppContextValue {
   selectProfile: (profileId: string) => Promise<void>;
   deleteProfile: (profileId: string) => Promise<void>;
 
-  createWordGroup: (name: string) => Promise<void>;
+  createWordGroup: (name: string) => Promise<string | null>;
   editWordGroup: (groupId: string, name: string) => Promise<void>;
   deleteWordGroup: (groupId: string) => Promise<void>;
   deleteWordsByGroup: (groupId: string) => Promise<void>;
@@ -231,7 +231,7 @@ export function AppProvider({
       const trimmedName = name.trim();
 
       if (!trimmedName || !data.activeProfileId) {
-        return;
+        return null;
       }
 
       const wordGroup: WordGroup = {
@@ -247,6 +247,8 @@ export function AppProvider({
         ...current,
         wordGroups: [...current.wordGroups, wordGroup],
       }));
+
+      return wordGroup.id;
     },
     [data.activeProfileId, updateData]
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -53,6 +54,7 @@ export default function SettingsScreen() {
   );
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isAllWordsModalVisible, setIsAllWordsModalVisible] = useState(false);
 
   const handleStartEditing = () => {
     setProfileName(activeProfile?.name ?? '');
@@ -159,9 +161,14 @@ export default function SettingsScreen() {
   };
 
   const handleExportCsv = async () => {
+    if (!activeProfile) {
+      Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
+      return;
+    }
+
     try {
       await shareTextFile(
-        createWordsCsv(data),
+        createWordsCsv(data, activeProfile.id),
         getFileName('csv'),
         'text/csv'
       );
@@ -173,15 +180,10 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleImport = async () => {
+  const handleImportJson = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'application/json',
-          'text/csv',
-          'text/comma-separated-values',
-          'text/plain',
-        ],
+        type: 'application/json',
         copyToCacheDirectory: true,
       });
 
@@ -195,22 +197,41 @@ export default function SettingsScreen() {
       });
       const imported = parseImportedFile(content, asset.name);
 
-      if (imported.type === 'json') {
-        Alert.alert(
-          'Восстановить резервную копию?',
-          'Текущие профили, слова и прогресс будут заменены данными из файла.',
-          [
-            { text: 'Отмена', style: 'cancel' },
-            {
-              text: 'Восстановить',
-              style: 'destructive',
-              onPress: async () => {
-                await restoreAppData(imported.data);
-                Alert.alert('Готово', 'Резервная копия восстановлена.');
-              },
+      if (imported.type !== 'json') {
+        throw new Error('Выберите JSON-файл резервной копии.');
+      }
+
+      Alert.alert(
+        'Восстановить резервную копию?',
+        'Текущие профили, слова и прогресс будут заменены данными из файла.',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          {
+            text: 'Восстановить',
+            style: 'destructive',
+            onPress: async () => {
+              await restoreAppData(imported.data);
+              Alert.alert('Готово', 'Резервная копия восстановлена.');
             },
-          ]
-        );
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert(
+        'Не удалось импортировать резервную копию',
+        error instanceof Error ? error.message : 'Проверьте формат файла.'
+      );
+    }
+  };
+
+  const handleImportCsv = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'text/plain'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
         return;
       }
 
@@ -222,6 +243,16 @@ export default function SettingsScreen() {
         return;
       }
 
+      const asset = result.assets[0];
+      const content = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      const imported = parseImportedFile(content, asset.name);
+
+      if (imported.type !== 'csv') {
+        throw new Error('Выберите CSV-файл со словами.');
+      }
+
       const importedCount = await importWords(imported.words);
       Alert.alert(
         'Импорт завершён',
@@ -231,7 +262,7 @@ export default function SettingsScreen() {
       );
     } catch (error) {
       Alert.alert(
-        'Не удалось импортировать файл',
+        'Не удалось импортировать слова',
         error instanceof Error ? error.message : 'Проверьте формат файла.'
       );
     }
@@ -631,6 +662,42 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Экспорт и импорт CSV</Text>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Только слова выбранного профиля</Text>
+
+          <TouchableOpacity
+            style={[styles.dataAction, { borderColor: theme.border }]}
+            onPress={handleExportCsv}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт CSV</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Слова и группы выбранного профиля</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Сохранить</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
+            onPress={handleImportCsv}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Импорт CSV</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Добавить слова в выбранный профиль</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Выбрать</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ДАННЫЕ */}
 
         <Text
@@ -653,7 +720,10 @@ export default function SettingsScreen() {
             },
           ]}
         >
-          <View style={styles.dataRow}>
+          <TouchableOpacity
+            style={styles.dataRow}
+            onPress={() => navigation.navigate('Profiles')}
+          >
             <View style={styles.dataInfo}>
               <Text
                 style={[
@@ -677,9 +747,9 @@ export default function SettingsScreen() {
                 {data.profiles.length}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.dataRow,
               styles.topBorder,
@@ -687,6 +757,7 @@ export default function SettingsScreen() {
                 borderColor: theme.border,
               },
             ]}
+            onPress={() => setIsAllWordsModalVisible(true)}
           >
             <View style={styles.dataInfo}>
               <Text
@@ -711,28 +782,8 @@ export default function SettingsScreen() {
                 {data.words.length}
               </Text>
             </View>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.resetButton,
-              {
-                borderColor: theme.danger,
-              },
-            ]}
-            onPress={handleReset}
-          >
-            <Text
-              style={[
-                styles.resetButtonText,
-                {
-                  color: theme.danger,
-                },
-              ]}
-            >
-              Сбросить все данные
-            </Text>
           </TouchableOpacity>
+
         </View>
 
         <Text
@@ -800,7 +851,7 @@ export default function SettingsScreen() {
               },
             ]}
           >
-            JSON сохраняет профили, группы и прогресс. CSV/TXT подходят для обмена словами.
+            JSON сохраняет профили, группы и прогресс. Восстановление локальной копии заменяет данные последней автоматической копией.
           </Text>
 
           <TouchableOpacity
@@ -816,22 +867,11 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
-            onPress={handleExportCsv}
+            onPress={handleImportJson}
           >
             <View style={styles.menuText}>
-              <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт CSV</Text>
-              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Только слова и группы</Text>
-            </View>
-            <Text style={[styles.actionLabel, { color: theme.primary }]}>Сохранить</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
-            onPress={handleImport}
-          >
-            <View style={styles.menuText}>
-              <Text style={[styles.menuTitle, { color: theme.text }]}>Импорт файла</Text>
-              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>JSON восстановит данные, CSV добавит слова</Text>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Импорт JSON</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Восстановить данные из файла</Text>
             </View>
             <Text style={[styles.actionLabel, { color: theme.primary }]}>Выбрать</Text>
           </TouchableOpacity>
@@ -841,10 +881,29 @@ export default function SettingsScreen() {
             onPress={handleRestoreLastBackup}
           >
             <View style={styles.menuText}>
-              <Text style={[styles.menuTitle, { color: theme.text }]}>Последняя локальная копия</Text>
-              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Автоматически создаётся перед сохранением</Text>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Локальная копия</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Восстановить последнюю автоматическую копию</Text>
             </View>
             <Text style={[styles.actionLabel, { color: theme.primary }]}>Восстановить</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Сброс данных</Text>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.resetButton, { borderColor: theme.danger }]}
+            onPress={handleReset}
+          >
+            <Text style={[styles.resetButtonText, { color: theme.danger }]}>Сбросить все данные</Text>
           </TouchableOpacity>
         </View>
 
@@ -891,6 +950,63 @@ export default function SettingsScreen() {
           v {getCurrentVersion()}
         </Text>
       </ScrollView>
+      <Modal
+        visible={isAllWordsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsAllWordsModalVisible(false)}
+      >
+        <View style={styles.wordsModalOverlay}>
+          <View
+            style={[
+              styles.wordsModal,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <View style={styles.wordsModalHeader}>
+              <View style={styles.menuText}>
+                <Text style={[styles.wordsModalTitle, { color: theme.text }]}>Все слова</Text>
+                <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Всего: {data.words.length}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.wordsModalClose, { borderColor: theme.border }]}
+                onPress={() => setIsAllWordsModalVisible(false)}
+              >
+                <Text style={[styles.wordsModalCloseText, { color: theme.text }]}>Закрыть</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.allWordsList}
+              showsVerticalScrollIndicator={false}
+            >
+              {data.words.length === 0 ? (
+                <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Слов пока нет.</Text>
+              ) : (
+                data.words.map((word) => {
+                  const profile = data.profiles.find((item) => item.id === word.profileId);
+                  const group = data.wordGroups.find((item) => item.id === word.groupId);
+
+                  return (
+                    <View
+                      key={word.id}
+                      style={[styles.allWordItem, { borderColor: theme.border }]}
+                    >
+                      <Text style={[styles.allWordEnglish, { color: theme.text }]}>{word.english}</Text>
+                      <Text style={[styles.allWordRussian, { color: theme.secondaryText }]}>{word.russian}</Text>
+                      <Text style={[styles.allWordMeta, { color: theme.secondaryText }]}>Профиль: {profile?.name ?? 'Неизвестный профиль'}</Text>
+                      <Text style={[styles.allWordMeta, { color: theme.secondaryText }]}>Группа: {group?.name ?? 'Без группы'}</Text>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
       <UpdateModal
         theme={theme}
         update={updateInfo}
@@ -1124,6 +1240,69 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  wordsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+
+  wordsModal: {
+    maxHeight: '85%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    padding: 20,
+  },
+
+  wordsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  wordsModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+
+  wordsModalClose: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  wordsModalCloseText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  allWordsList: {
+    marginBottom: 4,
+  },
+
+  allWordItem: {
+    borderTopWidth: 1,
+    paddingVertical: 12,
+  },
+
+  allWordEnglish: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+
+  allWordRussian: {
+    fontSize: 15,
+    marginTop: 3,
+  },
+
+  allWordMeta: {
+    fontSize: 12,
+    marginTop: 4,
   },
 
   version: {

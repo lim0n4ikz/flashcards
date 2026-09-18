@@ -2,13 +2,20 @@ import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { useApp } from '../context/AppContext';
+import type { RootTabParamList } from '../navigation/types';
+
+type NavigationProp = BottomTabNavigationProp<RootTabParamList>;
 
 export default function StatsScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const {
     theme,
     activeProfileWords,
@@ -141,7 +148,7 @@ export default function StatsScreen() {
         </View>
 
         <View style={styles.grid}>
-          <View
+          <TouchableOpacity
             style={[
               styles.statCard,
               {
@@ -149,6 +156,7 @@ export default function StatsScreen() {
                 borderColor: theme.border,
               },
             ]}
+              onPress={() => navigation.navigate('Words', { filter: 'all' })}
           >
             <Text style={styles.icon}>📚</Text>
 
@@ -173,9 +181,9 @@ export default function StatsScreen() {
             >
               Всего слов
             </Text>
-          </View>
+          </TouchableOpacity>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.statCard,
               {
@@ -183,6 +191,7 @@ export default function StatsScreen() {
                 borderColor: theme.border,
               },
             ]}
+              onPress={() => navigation.navigate('Words', { filter: 'new' })}
           >
             <Text style={styles.icon}>🆕</Text>
 
@@ -207,9 +216,9 @@ export default function StatsScreen() {
             >
               Новых
             </Text>
-          </View>
+          </TouchableOpacity>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.statCard,
               {
@@ -217,6 +226,7 @@ export default function StatsScreen() {
                 borderColor: theme.border,
               },
             ]}
+              onPress={() => navigation.navigate('Words', { filter: 'needsReview' })}
           >
             <Text style={styles.icon}>🔄</Text>
 
@@ -241,9 +251,9 @@ export default function StatsScreen() {
             >
               На повторение
             </Text>
-          </View>
+          </TouchableOpacity>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.statCard,
               {
@@ -251,6 +261,7 @@ export default function StatsScreen() {
                 borderColor: theme.border,
               },
             ]}
+            onPress={() => navigation.navigate('Words', { filter: 'remembered' })}
           >
             <Text style={styles.icon}>✅</Text>
 
@@ -275,7 +286,7 @@ export default function StatsScreen() {
             >
               Запомнено
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>

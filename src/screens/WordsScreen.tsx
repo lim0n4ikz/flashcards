@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -9,24 +9,34 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 
 import { useApp } from '../context/AppContext';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList, RootTabParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type WordsRouteProp = RouteProp<RootTabParamList, 'Words'>;
 type FilterMode = 'all' | 'new' | 'needsReview' | 'remembered';
 
 export default function WordsScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<WordsRouteProp>();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterMode>('all');
+  const [filter, setFilter] = useState<FilterMode>(
+    route.params?.filter ?? 'all'
+  );
   const [newGroupName, setNewGroupName] = useState('');
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
+  const [ungroupedOnly, setUngroupedOnly] = useState(false);
+
+  useEffect(() => {
+    setFilter(route.params?.filter ?? 'all');
+  }, [route.params?.filter]);
 
   const {
     theme,
@@ -45,12 +55,14 @@ export default function WordsScreen() {
 
   const scopedWords = useMemo(
     () =>
-      focusedGroupId === null
-        ? activeProfileWords
-        : activeProfileWords.filter(
-            (word) => word.groupId === focusedGroupId
-          ),
-    [activeProfileWords, focusedGroupId]
+      ungroupedOnly
+        ? activeProfileWords.filter((word) => word.groupId === null)
+        : focusedGroupId === null
+          ? activeProfileWords
+          : activeProfileWords.filter(
+              (word) => word.groupId === focusedGroupId
+            ),
+    [activeProfileWords, focusedGroupId, ungroupedOnly]
   );
 
   const counts = useMemo(
@@ -77,11 +89,13 @@ export default function WordsScreen() {
           word.russian.toLowerCase().includes(query);
         const matchesFilter = filter === 'all' || word.status === filter;
         const matchesGroup =
-          focusedGroupId === null || word.groupId === focusedGroupId;
+          ungroupedOnly
+            ? word.groupId === null
+            : focusedGroupId === null || word.groupId === focusedGroupId;
 
         return matchesSearch && matchesFilter && matchesGroup;
       }),
-    [scopedWords, filter, search]
+    [scopedWords, filter, search, focusedGroupId, ungroupedOnly]
   );
 
   const focusedGroup = activeProfileWordGroups.find(
@@ -273,6 +287,7 @@ export default function WordsScreen() {
                         style={styles.groupInfo}
                         onPress={() => {
                           setFocusedGroupId(group.id);
+                          setUngroupedOnly(false);
                           setSelectedWordIds([]);
                         }}
                       >
@@ -374,14 +389,21 @@ export default function WordsScreen() {
             },
           ]}
         >
-          <View style={styles.groupInfo}>
+          <TouchableOpacity
+            style={styles.groupInfo}
+            onPress={() => {
+              setFocusedGroupId(null);
+              setUngroupedOnly(true);
+              setSelectedWordIds([]);
+            }}
+          >
             <Text style={[styles.groupName, { color: theme.text }]}>
               Без группы
             </Text>
             <Text style={[styles.groupMeta, { color: theme.secondaryText }]}>
               {ungroupedWordsCount} слов
             </Text>
-          </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             disabled={ungroupedWordsCount === 0}
@@ -500,18 +522,27 @@ export default function WordsScreen() {
           </View>
         )}
 
-        {focusedGroupId !== null && (
+        {(focusedGroupId !== null || ungroupedOnly) && (
           <View style={styles.focusedGroupBar}>
             <Text style={[styles.moveTitle, { color: theme.text }]}>
-              Слова группы: {focusedGroup?.name ?? '...'}
+              {ungroupedOnly
+                ? 'Слова без группы'
+                : `Слова группы: ${focusedGroup?.name ?? '...'}`}
             </Text>
             <View style={styles.focusedGroupActions}>
+              {focusedGroupId !== null && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('WordForm', { groupId: focusedGroupId })}
+                >
+                  <Text style={[styles.inlineAction, { color: theme.primary }]}>Добавить слово</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                onPress={() => navigation.navigate('WordForm', { groupId: focusedGroupId })}
+                onPress={() => {
+                  setFocusedGroupId(null);
+                  setUngroupedOnly(false);
+                }}
               >
-                <Text style={[styles.inlineAction, { color: theme.primary }]}>Добавить слово</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setFocusedGroupId(null)}>
                 <Text style={[styles.inlineAction, { color: theme.secondaryText }]}>Показать все</Text>
               </TouchableOpacity>
             </View>
@@ -860,6 +891,11 @@ const styles = StyleSheet.create({
   movePanel: {
     marginBottom: 16,
     gap: 10,
+    borderWidth: 2,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: '#FFF7ED',
+    borderColor: '#F59E0B',
   },
 
   deleteSelectedButton: {
@@ -886,8 +922,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   moveTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
   groupChoice: {
     borderWidth: 1,

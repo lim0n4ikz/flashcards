@@ -1,7 +1,7 @@
 import appConfig from '../../app.json';
 
 const VERSION_FILE_URL =
-  'https://raw.githubusercontent.com/lim0n4ikz/flashcards-app/main/version.json';
+  'https://raw.githubusercontent.com/lim0n4ikz/flashcards/main/version.json';
 const REQUEST_TIMEOUT_MS = 5000;
 
 interface RemoteVersionFile {

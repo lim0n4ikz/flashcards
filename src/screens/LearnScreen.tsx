@@ -277,7 +277,7 @@ export default function LearnScreen() {
                         })
                       }
                     >
-                      <Text style={[styles.groupActionText, { color: theme.text }]}>Все</Text>
+                      <Text style={[styles.groupActionText, { color: theme.text }]}>Повторить все</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity

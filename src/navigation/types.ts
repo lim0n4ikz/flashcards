@@ -4,7 +4,9 @@ export type RootTabParamList = {
   Home: undefined;
   Learn: undefined;
   Flashcards: undefined;
-  Words: undefined;
+  Words: {
+    filter?: 'all' | 'needsReview' | 'new' | 'remembered';
+  } | undefined;
   Stats: undefined;
   Settings: undefined;
 };

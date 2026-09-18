@@ -42,18 +42,20 @@ export function createJsonBackup(data: AppData): string {
   return JSON.stringify(data, null, 2);
 }
 
-export function createWordsCsv(data: AppData): string {
+export function createWordsCsv(data: AppData, profileId: string): string {
   const rows = ['english,russian,group'];
 
-  data.words.forEach((word) => {
-    const group = data.wordGroups.find((item) => item.id === word.groupId);
+  data.words
+    .filter((word) => word.profileId === profileId)
+    .forEach((word) => {
+      const group = data.wordGroups.find((item) => item.id === word.groupId);
 
-    rows.push(
-      [word.english, word.russian, group?.name ?? '']
-        .map(escapeCsv)
-        .join(',')
-    );
-  });
+      rows.push(
+        [word.english, word.russian, group?.name ?? '']
+          .map(escapeCsv)
+          .join(',')
+      );
+    });
 
   return `\uFEFF${rows.join('\n')}`;
 }

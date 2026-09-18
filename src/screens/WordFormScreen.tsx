@@ -30,6 +30,7 @@ export default function WordFormScreen() {
     activeProfile,
     activeProfileWords,
     activeProfileWordGroups,
+    createWordGroup,
     addWord,
     updateWord,
   } = useApp();
@@ -56,17 +57,45 @@ export default function WordFormScreen() {
   const [bulkDelimiter, setBulkDelimiter] =
     useState<BulkDelimiter>('-');
   const [addMode, setAddMode] = useState<AddMode>('bulk');
+  const [groupSearch, setGroupSearch] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+
+  const visibleGroups = useMemo(() => {
+    const query = groupSearch.trim().toLowerCase();
+
+    return activeProfileWordGroups.filter((group) =>
+      !query || group.name.toLowerCase().includes(query)
+    );
+  }, [activeProfileWordGroups, groupSearch]);
 
   const groupOptions = useMemo(
     () => [
       { id: null, label: 'Без группы' },
-      ...activeProfileWordGroups.map((group) => ({
+      ...visibleGroups.map((group) => ({
         id: group.id,
         label: group.name,
       })),
     ],
-    [activeProfileWordGroups]
+    [visibleGroups]
   );
+
+  const handleCreateGroup = async () => {
+    const trimmedName = newGroupName.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    const groupId = await createWordGroup(trimmedName);
+
+    if (groupId) {
+      setSelectedGroupId(groupId);
+      setBulkGroupId(groupId);
+    }
+
+    setGroupSearch('');
+    setNewGroupName('');
+  };
 
   const handleAdd = async () => {
     if (!english.trim() || !russian.trim()) {
@@ -225,6 +254,63 @@ export default function WordFormScreen() {
           Группа
         </Text>
 
+        <View style={styles.groupTools}>
+          <TextInput
+            value={groupSearch}
+            onChangeText={setGroupSearch}
+            placeholder="Поиск групп"
+            placeholderTextColor={theme.secondaryText}
+            style={[
+              styles.groupSearchInput,
+              {
+                color: theme.text,
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              },
+            ]}
+          />
+          <View style={styles.createGroupRow}>
+            <TextInput
+              value={newGroupName}
+              onChangeText={setNewGroupName}
+              placeholder="Новая группа"
+              placeholderTextColor={theme.secondaryText}
+              style={[
+                styles.groupSearchInput,
+                styles.createGroupInput,
+                {
+                  color: theme.text,
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            />
+            <TouchableOpacity
+              style={[
+                styles.createGroupButton,
+                {
+                  backgroundColor: newGroupName.trim()
+                    ? theme.primary
+                    : theme.border,
+                },
+              ]}
+              disabled={!newGroupName.trim()}
+              onPress={handleCreateGroup}
+            >
+              <Text
+                style={{
+                  color: newGroupName.trim()
+                    ? theme.primaryText
+                    : theme.secondaryText,
+                  fontWeight: '700',
+                }}
+              >
+                Создать
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.groupWrap}>
           {groupOptions.map((group) => {
             const isSelected =
@@ -262,6 +348,10 @@ export default function WordFormScreen() {
             );
           })}
         </View>
+
+        {visibleGroups.length === 0 && (
+          <Text style={[styles.groupEmptyText, { color: theme.secondaryText }]}>Группы не найдены</Text>
+        )}
           </>
         )}
 
@@ -323,6 +413,60 @@ export default function WordFormScreen() {
           <View style={styles.bulkWrap}>
             <Text style={[styles.bulkTitle, { color: theme.text }]}>Массовый ввод</Text>
             <Text style={[styles.bulkLabel, { color: theme.text }]}>Добавить в группу</Text>
+            <TextInput
+              value={groupSearch}
+              onChangeText={setGroupSearch}
+              placeholder="Поиск групп"
+              placeholderTextColor={theme.secondaryText}
+              style={[
+                styles.groupSearchInput,
+                {
+                  color: theme.text,
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            />
+            <View style={styles.createGroupRow}>
+              <TextInput
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+                placeholder="Новая группа"
+                placeholderTextColor={theme.secondaryText}
+                style={[
+                  styles.groupSearchInput,
+                  styles.createGroupInput,
+                  {
+                    color: theme.text,
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                  },
+                ]}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.createGroupButton,
+                  {
+                    backgroundColor: newGroupName.trim()
+                      ? theme.primary
+                      : theme.border,
+                  },
+                ]}
+                disabled={!newGroupName.trim()}
+                onPress={handleCreateGroup}
+              >
+                <Text
+                  style={{
+                    color: newGroupName.trim()
+                      ? theme.primaryText
+                      : theme.secondaryText,
+                    fontWeight: '700',
+                  }}
+                >
+                  Создать
+                </Text>
+              </TouchableOpacity>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {groupOptions.map((group) => {
                 const isSelected = bulkGroupId === group.id;
@@ -528,6 +672,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 4,
+  },
+
+  groupTools: {
+    gap: 8,
+    marginBottom: 10,
+  },
+
+  groupSearchInput: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+
+  createGroupRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  createGroupInput: {
+    flex: 1,
+  },
+
+  createGroupButton: {
+    minWidth: 92,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+
+  groupEmptyText: {
+    fontSize: 13,
     marginBottom: 4,
   },
 

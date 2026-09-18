@@ -2,6 +2,7 @@ import React from 'react';
 import {
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,7 +55,7 @@ export default function HomeScreen() {
               Привет, {activeProfile.name}! 👋
             </Text>
 
-            <View
+            <TouchableOpacity
               style={[
                 styles.card,
                 {
@@ -62,6 +63,10 @@ export default function HomeScreen() {
                   borderColor: theme.border,
                 },
               ]}
+              activeOpacity={0.8}
+              onPress={() =>
+                navigation.navigate('MainTabs', { screen: 'Learn' })
+              }
             >
               <Text
                 style={[
@@ -117,7 +122,7 @@ export default function HomeScreen() {
               >
                 Прогресс: {progress}%
               </Text>
-            </View>
+            </TouchableOpacity>
           </>
         ) : (
           <View
