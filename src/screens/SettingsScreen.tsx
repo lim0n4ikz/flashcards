@@ -22,6 +22,7 @@ import {
   createJsonBackup,
   createWordsCsv,
   parseImportedFile,
+  saveTextFile,
   shareTextFile,
 } from '../storage/backup';
 import {
@@ -145,12 +146,17 @@ export default function SettingsScreen() {
     return `flashcards-${date}.${extension}`;
   };
 
-  const handleExportJson = async () => {
+  const handleSaveJson = async () => {
     try {
-      await shareTextFile(
+      await saveTextFile(
         createJsonBackup(data),
         getFileName('json'),
         'application/json'
+      );
+
+      Alert.alert(
+        'Готово',
+        'Файл сохранён в папку Downloads на устройстве.'
       );
     } catch (error) {
       Alert.alert(
@@ -160,7 +166,47 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleExportCsv = async () => {
+  const handleShareJson = async () => {
+    try {
+      await shareTextFile(
+        createJsonBackup(data),
+        getFileName('json'),
+        'application/json'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Не удалось отправить данные',
+        error instanceof Error ? error.message : 'Попробуйте ещё раз.'
+      );
+    }
+  };
+
+  const handleSaveCsv = async () => {
+    if (!activeProfile) {
+      Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
+      return;
+    }
+
+    try {
+      await saveTextFile(
+        createWordsCsv(data, activeProfile.id),
+        getFileName('csv'),
+        'text/csv'
+      );
+
+      Alert.alert(
+        'Готово',
+        'Файл с словами сохранён в папку Downloads на устройстве.'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Не удалось экспортировать слова',
+        error instanceof Error ? error.message : 'Попробуйте ещё раз.'
+      );
+    }
+  };
+
+  const handleShareCsv = async () => {
     if (!activeProfile) {
       Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
       return;
@@ -174,7 +220,7 @@ export default function SettingsScreen() {
       );
     } catch (error) {
       Alert.alert(
-        'Не удалось экспортировать слова',
+        'Не удалось отправить слова',
         error instanceof Error ? error.message : 'Попробуйте ещё раз.'
       );
     }
@@ -677,13 +723,24 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.dataAction, { borderColor: theme.border }]}
-            onPress={handleExportCsv}
+            onPress={handleSaveCsv}
           >
             <View style={styles.menuText}>
               <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт CSV</Text>
               <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Слова и группы выбранного профиля</Text>
             </View>
-            <Text style={[styles.actionLabel, { color: theme.primary }]}>Сохранить</Text>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Скачать</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
+            onPress={handleShareCsv}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Отправить CSV</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Поделиться файлом через систему</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Отправить</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -856,13 +913,24 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.dataAction, { borderColor: theme.border }]}
-            onPress={handleExportJson}
+            onPress={handleSaveJson}
           >
             <View style={styles.menuText}>
               <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт JSON</Text>
               <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Полный резервный файл</Text>
             </View>
-            <Text style={[styles.actionLabel, { color: theme.primary }]}>Сохранить</Text>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Скачать</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
+            onPress={handleShareJson}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Отправить JSON</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Поделиться резервной копией</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Отправить</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

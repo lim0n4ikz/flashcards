@@ -1,5 +1,4 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 
 import type { AppData } from '../types';
 
@@ -150,20 +149,38 @@ export function parseImportedFile(
   return { type: 'csv', words };
 }
 
+export async function saveTextFile(
+  content: string,
+  fileName: string,
+  _mimeType: string
+): Promise<string> {
+  if (!FileSystem.documentDirectory) {
+    throw new Error('Хранилище файлов недоступно.');
+  }
+
+  const downloadsDir = `${FileSystem.documentDirectory}downloads/`;
+
+  await FileSystem.makeDirectoryAsync(downloadsDir, {
+    intermediates: true,
+  });
+
+  const uri = `${downloadsDir}${fileName}`;
+
+  await FileSystem.writeAsStringAsync(uri, content, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  return uri;
+}
+
 export async function shareTextFile(
   content: string,
   fileName: string,
   mimeType: string
 ): Promise<void> {
-  if (!FileSystem.documentDirectory) {
-    throw new Error('Хранилище файлов недоступно.');
-  }
+  const uri = await saveTextFile(content, fileName, mimeType);
 
-  const uri = `${FileSystem.documentDirectory}${fileName}`;
-
-  await FileSystem.writeAsStringAsync(uri, content, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
+  const { default: Sharing } = await import('expo-sharing');
 
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Системный обмен файлами недоступен.');
