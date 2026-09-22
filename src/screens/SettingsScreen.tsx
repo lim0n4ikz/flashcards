@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Alert,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -9,6 +10,7 @@ import {
   View,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -21,6 +23,7 @@ import UpdateModal from '../components/UpdateModal';
 import {
   createJsonBackup,
   createWordsCsv,
+  DOWNLOADS_DIRECTORY_KEY,
   parseImportedFile,
   saveTextFile,
   shareTextFile,
@@ -146,7 +149,57 @@ export default function SettingsScreen() {
     return `flashcards-${date}.${extension}`;
   };
 
-  const handleSaveJson = async () => {
+  const handleRequestDownloadsAccess = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Только Android', 'Эта функция доступна только на Android.');
+      return;
+    }
+
+    try {
+      const { StorageAccessFramework } = FileSystem;
+      const permission =
+        await StorageAccessFramework.requestDirectoryPermissionsAsync(
+          StorageAccessFramework.getUriForDirectoryInRoot('Download')
+        );
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Доступ не получен',
+          'Можно выбрать папку позже или сохранить файл в приложении.'
+        );
+        return;
+      }
+
+      await AsyncStorage.setItem(
+        DOWNLOADS_DIRECTORY_KEY,
+        permission.directoryUri
+      );
+
+      Alert.alert(
+        'Готово',
+        'Доступ к папке Загрузки разрешён.'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Не удалось открыть выбор папки',
+        error instanceof Error ? error.message : 'Попробуйте ещё раз.'
+      );
+    }
+  };
+
+  const handleResetDownloadsAccess = async () => {
+    try {
+      await AsyncStorage.removeItem(DOWNLOADS_DIRECTORY_KEY);
+      Alert.alert('Готово', 'Доступ к папке Загрузки сброшен.');
+    } catch (error) {
+      Alert.alert(
+        'Не удалось сбросить доступ',
+        error instanceof Error ? error.message : 'Попробуйте ещё раз.'
+      );
+    }
+  };
+
+  const saveJson = async () => {
     try {
       await saveTextFile(
         createJsonBackup(data),
@@ -166,7 +219,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleShareJson = async () => {
+  const shareJson = async () => {
     try {
       await shareTextFile(
         createJsonBackup(data),
@@ -181,7 +234,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSaveCsv = async () => {
+  const saveCsv = async () => {
     if (!activeProfile) {
       Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
       return;
@@ -206,7 +259,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleShareCsv = async () => {
+  const shareCsv = async () => {
     if (!activeProfile) {
       Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
       return;
@@ -224,6 +277,60 @@ export default function SettingsScreen() {
         error instanceof Error ? error.message : 'Попробуйте ещё раз.'
       );
     }
+  };
+
+  const handleSaveJson = () => {
+    Alert.alert(
+      'Сохранить JSON?',
+      'Полная резервная копия будет сохранена в папку Downloads.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Подтвердить', onPress: saveJson },
+      ]
+    );
+  };
+
+  const handleShareJson = () => {
+    Alert.alert(
+      'Отправить JSON?',
+      'Полная резервная копия будет подготовлена для отправки.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Подтвердить', onPress: shareJson },
+      ]
+    );
+  };
+
+  const handleSaveCsv = () => {
+    if (!activeProfile) {
+      Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
+      return;
+    }
+
+    Alert.alert(
+      'Сохранить CSV?',
+      'Слова выбранного профиля будут сохранены в папку Downloads.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Подтвердить', onPress: saveCsv },
+      ]
+    );
+  };
+
+  const handleShareCsv = () => {
+    if (!activeProfile) {
+      Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
+      return;
+    }
+
+    Alert.alert(
+      'Отправить CSV?',
+      'Файл со словами выбранного профиля будет подготовлен для отправки.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Подтвердить', onPress: shareCsv },
+      ]
+    );
   };
 
   const handleImportJson = async () => {
@@ -708,53 +815,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Экспорт и импорт CSV</Text>
-
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Только слова выбранного профиля</Text>
-
-          <TouchableOpacity
-            style={[styles.dataAction, { borderColor: theme.border }]}
-            onPress={handleSaveCsv}
-          >
-            <View style={styles.menuText}>
-              <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт CSV</Text>
-              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Слова и группы выбранного профиля</Text>
-            </View>
-            <Text style={[styles.actionLabel, { color: theme.primary }]}>Скачать</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
-            onPress={handleShareCsv}
-          >
-            <View style={styles.menuText}>
-              <Text style={[styles.menuTitle, { color: theme.text }]}>Отправить CSV</Text>
-              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Поделиться файлом через систему</Text>
-            </View>
-            <Text style={[styles.actionLabel, { color: theme.primary }]}>Отправить</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
-            onPress={handleImportCsv}
-          >
-            <View style={styles.menuText}>
-              <Text style={[styles.menuTitle, { color: theme.text }]}>Импорт CSV</Text>
-              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Добавить слова в выбранный профиль</Text>
-            </View>
-            <Text style={[styles.actionLabel, { color: theme.primary }]}>Выбрать</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* ДАННЫЕ */}
 
         <Text
@@ -843,6 +903,53 @@ export default function SettingsScreen() {
 
         </View>
 
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Экспорт и импорт слов и групп профиля (CSV)</Text>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Только слова выбранного профиля</Text>
+
+          <TouchableOpacity
+            style={[styles.dataAction, { borderColor: theme.border }]}
+            onPress={handleSaveCsv}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт CSV</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Слова и группы выбранного профиля</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Скачать</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
+            onPress={handleShareCsv}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Отправить CSV</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Поделиться файлом через систему</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Отправить</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
+            onPress={handleImportCsv}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Импорт CSV</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Добавить слова в выбранный профиль</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Выбрать</Text>
+          </TouchableOpacity>
+        </View>
+
         <Text
           style={[
             styles.sectionTitle,
@@ -877,6 +984,60 @@ export default function SettingsScreen() {
             <Text style={[styles.primaryButtonText, { color: theme.primaryText }]}>
               {isCheckingUpdate ? 'Проверка...' : 'Проверить обновления'}
             </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.text,
+            },
+          ]}
+        >
+          Папка загрузок
+        </Text>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.menuDescription,
+              {
+                color: theme.secondaryText,
+              },
+            ]}
+          >
+            Android запрашивает доступ к папке Загрузки через системный диалог.
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.dataAction, { borderColor: theme.border }]}
+            onPress={handleRequestDownloadsAccess}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Разрешить доступ к папке Загрузки</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Выбрать папку для сохранения файлов</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Выбрать</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
+            onPress={handleResetDownloadsAccess}
+          >
+            <View style={styles.menuText}>
+              <Text style={[styles.menuTitle, { color: theme.text }]}>Сбросить доступ к папке</Text>
+              <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>Удалить сохранённый выбор папки</Text>
+            </View>
+            <Text style={[styles.actionLabel, { color: theme.primary }]}>Сброс</Text>
           </TouchableOpacity>
         </View>
 

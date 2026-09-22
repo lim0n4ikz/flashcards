@@ -85,7 +85,9 @@ export default function StatsScreen() {
           </Text>
         )}
 
-        <View
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Learn')}
           style={[
             styles.progressCard,
             {
@@ -145,7 +147,7 @@ export default function StatsScreen() {
           >
             {stats.remembered} из {stats.total} слов запомнено
           </Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.grid}>
           <TouchableOpacity

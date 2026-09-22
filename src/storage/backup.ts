@@ -1,6 +1,11 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 import type { AppData } from '../types';
+
+export const DOWNLOADS_DIRECTORY_KEY = '@flashcards/downloads-directory';
 
 export interface ImportedWord {
   english: string;
@@ -152,25 +157,71 @@ export function parseImportedFile(
 export async function saveTextFile(
   content: string,
   fileName: string,
-  _mimeType: string
+  mimeType: string
 ): Promise<string> {
-  if (!FileSystem.documentDirectory) {
-    throw new Error('Хранилище файлов недоступно.');
+  const saveToAppDownloads = async (): Promise<string> => {
+    if (!FileSystem.documentDirectory) {
+      throw new Error('Хранилище файлов недоступно.');
+    }
+
+    const downloadsDir = `${FileSystem.documentDirectory}downloads/`;
+
+    await FileSystem.makeDirectoryAsync(downloadsDir, {
+      intermediates: true,
+    });
+
+    const uri = `${downloadsDir}${fileName}`;
+
+    await FileSystem.writeAsStringAsync(uri, content, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    return uri;
+  };
+
+  if (Platform.OS === 'android') {
+    const { StorageAccessFramework } = FileSystem;
+
+    try {
+      let directoryUri = await AsyncStorage.getItem(
+        DOWNLOADS_DIRECTORY_KEY
+      );
+
+      if (!directoryUri) {
+        const permission =
+          await StorageAccessFramework.requestDirectoryPermissionsAsync(
+            StorageAccessFramework.getUriForDirectoryInRoot('Download')
+          );
+
+        if (!permission.granted) {
+          return saveToAppDownloads();
+        }
+
+        directoryUri = permission.directoryUri;
+        await AsyncStorage.setItem(
+          DOWNLOADS_DIRECTORY_KEY,
+          directoryUri
+        );
+      }
+
+      const fileNameWithoutExtension = fileName.replace(/\.[^.]+$/, '');
+      const uri = await StorageAccessFramework.createFileAsync(
+        directoryUri,
+        fileNameWithoutExtension,
+        mimeType
+      );
+
+      await FileSystem.writeAsStringAsync(uri, content, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      return uri;
+    } catch (_error) {
+      return saveToAppDownloads();
+    }
   }
 
-  const downloadsDir = `${FileSystem.documentDirectory}downloads/`;
-
-  await FileSystem.makeDirectoryAsync(downloadsDir, {
-    intermediates: true,
-  });
-
-  const uri = `${downloadsDir}${fileName}`;
-
-  await FileSystem.writeAsStringAsync(uri, content, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-
-  return uri;
+  return saveToAppDownloads();
 }
 
 export async function shareTextFile(
@@ -178,9 +229,19 @@ export async function shareTextFile(
   fileName: string,
   mimeType: string
 ): Promise<void> {
-  const uri = await saveTextFile(content, fileName, mimeType);
+  if (!FileSystem.cacheDirectory) {
+    throw new Error('Временное хранилище файлов недоступно.');
+  }
 
-  const { default: Sharing } = await import('expo-sharing');
+  const uri = `${FileSystem.cacheDirectory}${fileName}`;
+
+  await FileSystem.writeAsStringAsync(uri, content, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  if (typeof Sharing?.isAvailableAsync !== 'function') {
+    throw new Error('Системный обмен файлами недоступен.');
+  }
 
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Системный обмен файлами недоступен.');

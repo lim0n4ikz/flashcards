@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Мой английский — мобильное приложение для изучения английских слов с карточками, профилями и интервальным повторением.">
     <title>Мой английский — Flashcards</title>
-    <link rel="icon" href="assets/icon.png">
+    <link rel="icon" href="assets/android-icon-foreground.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -66,7 +66,15 @@
             margin-bottom: 56px;
         }
         .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: -.03em; }
-        .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--ink); color: var(--lime); font-size: 20px; box-shadow: 5px 5px 0 rgba(23,34,29,.12); }
+        .brand-mark {
+            display: block;
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            object-fit: contain;
+            background: transparent;
+            box-shadow: none;
+        }
         .nav-links { display: flex; align-items: center; gap: 24px; color: var(--muted); font-size: 14px; font-weight: 600; }
         .nav-links a:hover { color: var(--ink); }
         .nav-download { padding: 11px 17px; border-radius: 999px; color: var(--ink); background: var(--lime); transition: transform .2s ease, box-shadow .2s ease; }
@@ -88,22 +96,142 @@
         .button-ghost { border-color: var(--line); color: var(--ink); background: rgba(255,255,255,.4); }
         .button-ghost:hover { background: var(--cream); }
 
-        .hero-art { position: relative; min-height: 390px; }
-        .hero-art::before { content: ''; position: absolute; width: 275px; height: 275px; top: 46px; left: 45px; border-radius: 50%; background: var(--lime); transform: rotate(-12deg); }
-        .hero-art::after { content: 'A'; position: absolute; right: 20px; top: 20px; color: var(--coral); font-family: 'Space Grotesk'; font-size: 100px; font-weight: 700; transform: rotate(15deg); opacity: .75; }
-        .phone { position: absolute; z-index: 1; left: 50%; top: 2px; width: 242px; height: 370px; padding: 12px; border: 8px solid var(--ink); border-radius: 34px; background: var(--ink); box-shadow: 22px 25px 0 rgba(23,34,29,.13), var(--shadow); transform: rotate(6deg) translateX(-43%); }
-        .phone-screen { display: flex; flex-direction: column; height: 100%; padding: 22px 16px; border-radius: 21px; background: linear-gradient(155deg, #fcfff2, #dff2b8); overflow: hidden; }
-        .phone-notch { width: 58px; height: 12px; margin: -22px auto 26px; border-radius: 0 0 9px 9px; background: var(--ink); }
-        .phone-small { color: #79914b; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-        .phone h3 { margin-top: 8px; font-size: 25px; line-height: 1; }
-        .word-card { margin-top: 23px; padding: 24px 14px; border-radius: 17px; background: var(--cream); box-shadow: 0 12px 25px rgba(74,104,40,.13); text-align: center; }
-        .word-card strong { display: block; font-family: 'Space Grotesk'; font-size: 29px; }
-        .word-card span { display: block; margin-top: 7px; color: var(--muted); font-size: 13px; }
-        .phone-progress { height: 7px; margin-top: auto; border-radius: 8px; background: rgba(23,34,29,.12); overflow: hidden; }
-        .phone-progress::after { content: ''; display: block; width: 68%; height: 100%; border-radius: inherit; background: var(--coral); }
-        .spark { position: absolute; z-index: 2; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 20px; background: var(--coral); color: #fff9e9; font-size: 30px; box-shadow: 7px 8px 0 rgba(23,34,29,.12); }
+        .hero-art {
+            position: relative;
+            min-height: 390px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+        }
+        .hero-art::before {
+            content: '';
+            position: absolute;
+            width: 275px;
+            height: 275px;
+            top: 46px;
+            left: 45px;
+            border-radius: 50%;
+            background: var(--lime);
+            transform: rotate(-12deg);
+        }
+        .hero-art::after {
+            content: 'A';
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            color: var(--coral);
+            font-family: 'Space Grotesk';
+            font-size: 100px;
+            font-weight: 700;
+            transform: rotate(15deg);
+            opacity: .75;
+        }
+        .phone {
+            position: absolute;
+            z-index: 1;
+            left: 50%;
+            top: 2px;
+            width: 242px;
+            height: 370px;
+            padding: 12px;
+            border: 8px solid var(--ink);
+            border-radius: 34px;
+            background: var(--ink);
+            box-shadow: 22px 25px 0 rgba(23,34,29,.13), var(--shadow);
+            transform: rotate(6deg) translateX(-43%);
+        }
+        .phone-screen {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 22px 16px;
+            border-radius: 21px;
+            background: linear-gradient(155deg, #fcfff2, #dff2b8);
+            overflow: hidden;
+        }
+        .phone-notch {
+            width: 58px;
+            height: 12px;
+            margin: -22px auto 26px;
+            border-radius: 0 0 9px 9px;
+            background: var(--ink);
+        }
+        .phone-small {
+            color: #79914b;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .phone h3 {
+            margin-top: 8px;
+            font-size: 25px;
+            line-height: 1;
+        }
+        .word-card {
+            margin-top: 23px;
+            padding: 24px 14px;
+            border-radius: 17px;
+            background: var(--cream);
+            box-shadow: 0 12px 25px rgba(74,104,40,.13);
+            text-align: center;
+        }
+        .word-card strong {
+            display: block;
+            font-family: 'Space Grotesk';
+            font-size: 29px;
+        }
+        .word-card span {
+            display: block;
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .phone-progress {
+            height: 7px;
+            margin-top: auto;
+            border-radius: 8px;
+            background: rgba(23,34,29,.12);
+            overflow: hidden;
+        }
+        .phone-progress::after {
+            content: '';
+            display: block;
+            width: 68%;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--coral);
+        }
+        .spark {
+            position: absolute;
+            z-index: 2;
+            display: grid;
+            place-items: center;
+            width: 62px;
+            height: 62px;
+            border-radius: 20px;
+            background: var(--coral);
+            color: #fff9e9;
+            font-size: 30px;
+            box-shadow: 7px 8px 0 rgba(23,34,29,.12);
+        }
         .spark-one { top: 22px; left: 16px; transform: rotate(-14deg); }
         .spark-two { right: 2px; bottom: 31px; transform: rotate(13deg); background: var(--mint); color: var(--ink); }
+        .hero-image-block {
+            margin-top: 28px;
+            display: flex;
+            justify-content: center;
+        }
+        .hero-image {
+            width: min(100%, 980px);
+            max-height: 620px;
+            object-fit: contain;
+            border-radius: 26px;
+            box-shadow: var(--shadow);
+            background: rgba(255,255,255,0.35);
+            border: 1px solid rgba(23,34,29,0.08);
+        }
 
         .section { padding: 60px 0; }
         .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 25px; }
@@ -175,11 +303,11 @@
 <body>
     <main class="site-shell">
         <nav class="nav reveal">
-            <a class="brand" href="#top"><span class="brand-mark">A</span><span>Мой английский</span></a>
+            <a class="brand" href="#top"><img class="brand-mark" src="assets/android-icon-foreground.png" alt="Мой английский" /><span>Мой английский</span></a>
             <div class="nav-links">
                 <a href="#features">Возможности</a>
                 <a href="#learning">Обучение</a>
-                <a class="nav-download" href="https://github.com/lim0n4ikz/flashcards/releases/latest/download/FlashCards-v-1.1.4.apk">Скачать приложение</a>
+                <a class="nav-download" href="https://github.com/lim0n4ikz/flashcards/releases/latest/download/FlashCards-v-1.1.6.apk">Скачать приложение</a>
             </div>
         </nav>
 
@@ -187,13 +315,13 @@
             <div class="reveal delay-1">
                 <div class="eyebrow">English learning, your way</div>
                 <h1>Слова, которые <em>запоминаются.</em></h1>
-                <p class="hero-copy">«Мой английский» помогает учить новые слова в удобном темпе: создавайте свои словари, повторяйте карточки и видьте настоящий прогресс.</p>
+                <p class="hero-copy">«Мой английский» — мобильное приложение для изучения английских слов с профилями, группами, карточками и локальным прогрессом. Учите слова в своём темпе, сохраняйте резервные копии и управляйте словарями без сервера.</p>
                 <div class="hero-actions">
-                    <a class="button button-primary" href="https://github.com/lim0n4ikz/flashcards/releases/latest/download/FlashCards-v-1.1.4.apk">↓ Скачать приложение</a>
+                    <a class="button button-primary" href="https://github.com/lim0n4ikz/flashcards/releases/latest/download/FlashCards-v-1.1.6.apk">↓ Скачать приложение</a>
                     <a class="button button-ghost" href="#features">Узнать больше ↓</a>
                 </div>
             </div>
-            <div class="hero-art reveal delay-2" aria-label="Предпросмотр карточки слова">
+            <div class="hero-art reveal delay-2" aria-label="Предпросмотр приложения">
                 <div class="spark spark-one">✦</div>
                 <div class="spark spark-two">✓</div>
                 <div class="phone">
@@ -206,18 +334,22 @@
                     </div>
                 </div>
             </div>
+
+            <div class="hero-image-block reveal delay-3">
+                <img class="hero-image" src="assets/flashcardphotos.png" alt="Превью приложения Мой английский" />
+            </div>
         </section>
 
         <section class="section" id="features">
             <div class="section-heading reveal">
                 <h2>Всё нужное для уверенного словаря</h2>
-                <p>Минимум лишнего, максимум контроля над тем, что и как вы учите.</p>
+                <p>Собирайте словари, изучайте слова в карточках и держите весь прогресс под контролем.</p>
             </div>
             <div class="feature-grid">
-                <article class="feature reveal delay-1"><div class="feature-icon">👤</div><h3>Свои профили</h3><p>Отдельные слова и прогресс для каждого пользователя.</p></article>
-                <article class="feature reveal delay-1"><div class="feature-icon">🎴</div><h3>Карточки</h3><p>Переворачивайте карточки и отмечайте, что уже запомнили.</p></article>
-                <article class="feature reveal delay-2"><div class="feature-icon">📊</div><h3>Статистика</h3><p>Следите за новыми, изученными и повторяемыми словами.</p></article>
-                <article class="feature reveal delay-2"><div class="feature-icon">📦</div><h3>Импорт и экспорт</h3><p>Добавляйте словари из TXT, CSV и JSON и сохраняйте резервные копии.</p></article>
+                <article class="feature reveal delay-1"><div class="feature-icon">👤</div><h3>Профили и группы</h3><p>Создавайте несколько профилей и структурируйте слова по группам для удобного обучения.</p></article>
+                <article class="feature reveal delay-1"><div class="feature-icon">🎴</div><h3>Карточки</h3><p>Переходите между режимами изучения и отмечайте слова как запомненные или нуждающиеся в повторении.</p></article>
+                <article class="feature reveal delay-2"><div class="feature-icon">📊</div><h3>Статистика</h3><p>Следите за общим прогрессом, новыми словами, повторением и количеством запомненных слов.</p></article>
+                <article class="feature reveal delay-2"><div class="feature-icon">📦</div><h3>CSV и JSON</h3><p>Импортируйте и экспортируйте слова, группы и резервные копии для хранения на устройстве или передачи.</p></article>
             </div>
         </section>
 
@@ -225,30 +357,30 @@
             <div class="learning">
                 <div class="learning-intro reveal">
                     <h2>Учитесь в своём ритме.</h2>
-                    <p>Выбирайте подходящий режим и возвращайтесь к словам тогда, когда они действительно нужны.</p>
+                    <p>Выбирайте нужный режим: учите все слова, только новые, только те, что требуют повторения, или просматривайте уже запомненные карточки.</p>
                     <div class="mini-stat"><span>Режимы обучения</span><strong>04</strong></div>
                 </div>
                 <div class="mode-list">
                     <article class="mode reveal delay-1"><span class="mode-number">01 / ALL</span><h3>Все слова</h3><p>Полный список слов активного профиля.</p></article>
-                    <article class="mode reveal delay-1"><span class="mode-number">02 / NEW</span><h3>Новые</h3><p>Сосредоточьтесь на словах, которые ещё не учили.</p></article>
-                    <article class="mode reveal delay-2"><span class="mode-number">03 / REVIEW</span><h3>На повторение</h3><p>Вернитесь к словам, которым нужно ещё немного времени.</p></article>
-                    <article class="mode reveal delay-2"><span class="mode-number">04 / DONE</span><h3>Запомненные</h3><p>Посмотрите, какой путь уже пройден.</p></article>
+                    <article class="mode reveal delay-1"><span class="mode-number">02 / NEW</span><h3>Новые</h3><p>Фокусируйтесь на словах, которые ещё не были закреплены.</p></article>
+                    <article class="mode reveal delay-2"><span class="mode-number">03 / REVIEW</span><h3>На повторение</h3><p>Возвращайтесь к словам, которым нужно ещё немного времени и повторения.</p></article>
+                    <article class="mode reveal delay-2"><span class="mode-number">04 / DONE</span><h3>Запомненные</h3><p>Проверяйте, какие слова уже стали частью активного словаря.</p></article>
                 </div>
             </div>
         </section>
 
         <section class="section">
             <div class="privacy reveal">
-                <div><h2>Ваши данные остаются у вас.</h2><p>Приложение работает полностью локально, без обязательной регистрации, сервера и облачной синхронизации.</p></div>
-                <div class="privacy-list"><span>✓ Без аккаунта</span><span>✓ Без рекламы</span><span>✓ Локальное хранение</span><span>✓ Тёмная тема</span></div>
+                <div><h2>Ваши данные остаются у вас.</h2><p>Приложение работает полностью локально: профили, слова, группы, прогресс и резервные копии хранятся на устройстве без сервера, аккаунта и облачной синхронизации.</p></div>
+                <div class="privacy-list"><span>✓ Без аккаунта</span><span>✓ Без рекламы</span><span>✓ Локальное хранение</span><span>✓ CSV / JSON</span></div>
             </div>
         </section>
 
         <section class="release reveal">
-            <div><h2>Начните учить сегодня</h2><p>Скачайте актуальную версию приложения из GitHub Releases.</p></div>
+            <div><h2>Начните учить сегодня</h2><p>Скачайте актуальную версию приложения и начните изучать слова с профилями, карточками и статистикой.</p></div>
             <div class="hero-actions">
                 <a class="button" href="https://github.com/lim0n4ikz/flashcards/releases/latest" target="_blank" rel="noopener">Открыть релиз ↗</a>
-                <a class="button button-primary" href="https://github.com/lim0n4ikz/flashcards/releases/latest/download/FlashCards-v-1.1.4.apk">↓ Скачать APK</a>
+                <a class="button button-primary" href="https://github.com/lim0n4ikz/flashcards/releases/latest/download/FlashCards-v-1.1.6.apk">↓ Скачать APK</a>
             </div>
         </section>
 
