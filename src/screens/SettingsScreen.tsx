@@ -1473,7 +1473,7 @@ const styles = StyleSheet.create({
 
   wordsModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'transparent',
     justifyContent: 'flex-end',
   },
 

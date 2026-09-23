@@ -4,10 +4,18 @@ const VERSION_FILE_URL =
   'https://raw.githubusercontent.com/lim0n4ikz/flashcards/main/version.json';
 const REQUEST_TIMEOUT_MS = 5000;
 
-interface RemoteVersionFile {
+interface RemoteVersionRelease {
   version: string;
-  url: string;
+  url?: string;
   changes?: string[];
+}
+
+interface RemoteVersionFile {
+  version?: string;
+  latestVersion?: string;
+  url?: string;
+  changes?: string[];
+  releases?: RemoteVersionRelease[];
 }
 
 export interface UpdateInfo {
@@ -57,6 +65,35 @@ export function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+export function getChangesForVersionRange(
+  currentVersion: string,
+  releases: RemoteVersionRelease[]
+): string[] {
+  const sortedReleases = [...releases]
+    .filter(
+      (release) =>
+        typeof release.version === 'string' &&
+        compareVersions(release.version, currentVersion) > 0
+    )
+    .sort((left, right) => compareVersions(left.version, right.version));
+
+  const changes: string[] = [];
+  const seen = new Set<string>();
+
+  for (const release of sortedReleases) {
+    for (const change of release.changes ?? []) {
+      if (typeof change !== 'string' || seen.has(change)) {
+        continue;
+      }
+
+      seen.add(change);
+      changes.push(change);
+    }
+  }
+
+  return changes;
+}
+
 export async function fetchLatestVersion(): Promise<RemoteVersionFile> {
   const controller = new AbortController();
   const timeoutId = setTimeout(
@@ -76,12 +113,59 @@ export async function fetchLatestVersion(): Promise<RemoteVersionFile> {
       throw new Error(`Version request failed: ${response.status}`);
     }
 
-    const payload = (await response.json()) as Partial<RemoteVersionFile>;
+    const payload = (await response.json()) as Partial<RemoteVersionFile> & {
+      releases?: Array<
+        Partial<RemoteVersionRelease> & {
+          version?: string;
+          changes?: unknown;
+        }
+      >;
+    };
+
+    const releases = Array.isArray(payload.releases)
+      ? payload.releases
+          .filter(
+            (release): release is Partial<RemoteVersionRelease> & {
+              version: string;
+            } =>
+              typeof release?.version === 'string' &&
+              (release.changes === undefined ||
+                (Array.isArray(release.changes) &&
+                  release.changes.every((change) => typeof change === 'string')))
+          )
+          .map((release) => ({
+            version: release.version,
+            url: typeof release.url === 'string' ? release.url : undefined,
+            changes: Array.isArray(release.changes)
+              ? release.changes.filter((change): change is string => typeof change === 'string')
+              : [],
+          }))
+      : [];
+
+    const versionValue =
+      typeof payload.version === 'string'
+        ? payload.version
+        : typeof payload.latestVersion === 'string'
+          ? payload.latestVersion
+          : releases[releases.length - 1]?.version ?? '0.0.0';
+
+    const urlValue =
+      typeof payload.url === 'string'
+        ? payload.url
+        : releases[releases.length - 1]?.url ?? '';
+
+    const changesValue =
+      releases.length > 0
+        ? getChangesForVersionRange(getCurrentVersion(), releases)
+        : Array.isArray(payload.changes)
+          ? payload.changes.filter((change): change is string => typeof change === 'string')
+          : [];
 
     if (
-      typeof payload.version !== 'string' ||
-      typeof payload.url !== 'string' ||
-      (payload.changes !== undefined &&
+      !versionValue ||
+      (typeof payload.url !== 'string' && !urlValue) ||
+      (!releases.length &&
+        payload.changes !== undefined &&
         (!Array.isArray(payload.changes) ||
           payload.changes.some((change) => typeof change !== 'string')))
     ) {
@@ -89,9 +173,10 @@ export async function fetchLatestVersion(): Promise<RemoteVersionFile> {
     }
 
     return {
-      version: payload.version,
-      url: payload.url,
-      changes: payload.changes ?? [],
+      version: versionValue,
+      url: urlValue,
+      changes: changesValue,
+      releases,
     };
   } finally {
     clearTimeout(timeoutId);
@@ -102,13 +187,13 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
   try {
     const latest = await fetchLatestVersion();
 
-    if (compareVersions(latest.version, getCurrentVersion()) <= 0) {
+    if (compareVersions(latest.version ?? '0.0.0', getCurrentVersion()) <= 0) {
       return null;
     }
 
     return {
-      version: latest.version,
-      url: latest.url,
+      version: latest.version ?? getCurrentVersion(),
+      url: latest.url ?? '',
       changes: latest.changes ?? [],
     };
   } catch {

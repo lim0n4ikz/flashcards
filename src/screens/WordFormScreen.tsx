@@ -56,7 +56,7 @@ export default function WordFormScreen() {
   );
   const [bulkDelimiter, setBulkDelimiter] =
     useState<BulkDelimiter>('-');
-  const [addMode, setAddMode] = useState<AddMode>('bulk');
+  const [addMode, setAddMode] = useState<AddMode>('single');
   const [groupSearch, setGroupSearch] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
 
@@ -176,6 +176,8 @@ export default function WordFormScreen() {
     );
   }
 
+  const isSingleFormMode = Boolean(editingWord) || addMode === 'single';
+
   const canAdd =
     english.trim().length > 0 &&
     russian.trim().length > 0;
@@ -243,7 +245,7 @@ export default function WordFormScreen() {
           </View>
         )}
 
-        {(editingWord || addMode === 'single') && (
+        {isSingleFormMode && (
           <>
         <Text
           style={[
@@ -355,7 +357,7 @@ export default function WordFormScreen() {
           </>
         )}
 
-        {(editingWord || addMode === 'single') && (
+        {isSingleFormMode && (
           <>
             <Text
               style={[
@@ -575,7 +577,7 @@ export default function WordFormScreen() {
           </View>
         )}
 
-        {(editingWord || addMode === 'single') && <TouchableOpacity
+        {isSingleFormMode && <TouchableOpacity
           style={[
             styles.addButton,
             {
@@ -597,7 +599,7 @@ export default function WordFormScreen() {
               },
             ]}
           >
-            Добавить слово
+            {editingWord ? 'Сохранить изменения' : 'Добавить слово'}
           </Text>
         </TouchableOpacity>}
 

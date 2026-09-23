@@ -9,7 +9,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
@@ -20,6 +24,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type WordsRouteProp = RouteProp<RootTabParamList, 'Words'>;
 type FilterMode = 'all' | 'new' | 'needsReview' | 'remembered';
 
+const WORDS_PREVIEW_LIMIT = 30;
+
 export default function WordsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<WordsRouteProp>();
@@ -27,6 +33,7 @@ export default function WordsScreen() {
   const [filter, setFilter] = useState<FilterMode>(
     route.params?.filter ?? 'all'
   );
+  const [showAllWords, setShowAllWords] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
@@ -97,6 +104,28 @@ export default function WordsScreen() {
       }),
     [scopedWords, filter, search, focusedGroupId, ungroupedOnly]
   );
+
+  useEffect(() => {
+    setShowAllWords(false);
+  }, [filter, search, focusedGroupId, ungroupedOnly]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setShowAllWords(false);
+
+      return () => {
+        setShowAllWords(false);
+      };
+    }, [])
+  );
+
+  const visibleWords = useMemo(() => {
+    if (showAllWords || filteredWords.length <= WORDS_PREVIEW_LIMIT) {
+      return filteredWords;
+    }
+
+    return filteredWords.slice(0, WORDS_PREVIEW_LIMIT);
+  }, [filteredWords, showAllWords]);
 
   const focusedGroup = activeProfileWordGroups.find(
     (group) => group.id === focusedGroupId
@@ -627,17 +656,18 @@ export default function WordsScreen() {
             </Text>
           </View>
         ) : (
-          filteredWords.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.wordCard,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
+          <>
+            {visibleWords.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.wordCard,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
               <TouchableOpacity
                 style={[
                   styles.selectionBadge,
@@ -738,7 +768,22 @@ export default function WordsScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          ))
+            ))}
+
+            {filteredWords.length > visibleWords.length && (
+              <TouchableOpacity
+                style={[
+                  styles.showAllButton,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+                onPress={() => setShowAllWords(true)}
+              >
+                <Text style={[styles.showAllButtonText, { color: theme.primary }]}>
+                  Показать все слова ({filteredWords.length})
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -951,6 +996,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
+  },
+
+  showAllButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+
+  showAllButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 
   selectionActions: {
