@@ -2,7 +2,7 @@
   "expo": {
     "name": "Flashcards",
     "slug": "flashcards-app",
-    "version": "1.1.7",
+    "version": "1.1.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,7 +12,8 @@
     "android": {
       "package": "com.lim0n4ikzgames.flashcards",
       "adaptiveIcon": {
-        "backgroundColor": "#00000000",
+        "backgroundColor": "#1F2937",
+        "backgroundImage": "./assets/android-icon-background.png",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
