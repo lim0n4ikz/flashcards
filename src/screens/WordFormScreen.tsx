@@ -1,5 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +33,21 @@ type BulkDelimiter = '-' | '=' | ':' | '|';
 export default function WordFormScreen() {
   const navigation = useNavigation();
   const route = useRoute<WordFormRouteProp>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const russianInputRef = useRef<TextInput>(null);
+  const scrollToInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  useEffect(() => {
+    const subscription = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(scrollToInput, 100);
+    });
+
+    return () => subscription.remove();
+  }, [scrollToInput]);
 
   const {
     theme,
@@ -189,9 +213,16 @@ export default function WordFormScreen() {
         { backgroundColor: theme.background },
       ]}
     >
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
+        ref={scrollViewRef}
+        style={styles.formScroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
         <Text style={[styles.title, { color: theme.text }]}>
           {editingWord ? 'Сохранить изменения' : 'Добавить слово'}
@@ -260,6 +291,7 @@ export default function WordFormScreen() {
           <TextInput
             value={groupSearch}
             onChangeText={setGroupSearch}
+            onFocus={scrollToInput}
             placeholder="Поиск групп"
             placeholderTextColor={theme.secondaryText}
             style={[
@@ -275,6 +307,7 @@ export default function WordFormScreen() {
             <TextInput
               value={newGroupName}
               onChangeText={setNewGroupName}
+              onFocus={scrollToInput}
               placeholder="Новая группа"
               placeholderTextColor={theme.secondaryText}
               style={[
@@ -359,21 +392,19 @@ export default function WordFormScreen() {
 
         {isSingleFormMode && (
           <>
-            <Text
-              style={[
-                styles.label,
-                { color: theme.text },
-              ]}
-            >
+            <Text style={[styles.label, { color: theme.text }]}>
               Английское слово
             </Text>
-
             <TextInput
               value={english}
               onChangeText={setEnglish}
               placeholder="apple"
               placeholderTextColor={theme.secondaryText}
               autoCapitalize="none"
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => russianInputRef.current?.focus()}
+              onFocus={scrollToInput}
               style={[
                 styles.input,
                 {
@@ -383,21 +414,18 @@ export default function WordFormScreen() {
                 },
               ]}
             />
-
-            <Text
-              style={[
-                styles.label,
-                { color: theme.text },
-              ]}
-            >
+            <Text style={[styles.label, { color: theme.text }]}>
               Перевод
             </Text>
-
             <TextInput
+              ref={russianInputRef}
               value={russian}
               onChangeText={setRussian}
               placeholder="яблоко"
               placeholderTextColor={theme.secondaryText}
+              returnKeyType="done"
+              onSubmitEditing={handleAdd}
+              onFocus={scrollToInput}
               style={[
                 styles.input,
                 {
@@ -406,8 +434,24 @@ export default function WordFormScreen() {
                   borderColor: theme.border,
                 },
               ]}
-              onSubmitEditing={handleAdd}
             />
+            <TouchableOpacity
+              style={[
+                styles.addButton,
+                { backgroundColor: canAdd ? theme.primary : theme.border },
+              ]}
+              disabled={!canAdd}
+              onPress={handleAdd}
+            >
+              <Text
+                style={[
+                  styles.addButtonText,
+                  { color: canAdd ? theme.primaryText : theme.secondaryText },
+                ]}
+              >
+                {editingWord ? 'Сохранить изменения' : 'Добавить слово'}
+              </Text>
+            </TouchableOpacity>
           </>
         )}
 
@@ -418,6 +462,7 @@ export default function WordFormScreen() {
             <TextInput
               value={groupSearch}
               onChangeText={setGroupSearch}
+              onFocus={scrollToInput}
               placeholder="Поиск групп"
               placeholderTextColor={theme.secondaryText}
               style={[
@@ -433,6 +478,7 @@ export default function WordFormScreen() {
               <TextInput
                 value={newGroupName}
                 onChangeText={setNewGroupName}
+                onFocus={scrollToInput}
                 placeholder="Новая группа"
                 placeholderTextColor={theme.secondaryText}
                 style={[
@@ -532,10 +578,13 @@ export default function WordFormScreen() {
                 </View>
               </View>
             </View>
-            <Text style={[styles.bulkHintExample, { color: theme.secondaryText }]}>Пример: apple {bulkDelimiter} яблоко</Text>
+            <Text style={[styles.bulkHintExample, { color: theme.secondaryText }]}>
+              Пример: apple {bulkDelimiter} яблоко
+            </Text>
             <TextInput
               value={bulkWordsText}
               onChangeText={setBulkWordsText}
+              onFocus={scrollToInput}
               placeholder={`apple ${bulkDelimiter} яблоко\nbook ${bulkDelimiter} книга`}
               placeholderTextColor={theme.secondaryText}
               multiline
@@ -548,7 +597,6 @@ export default function WordFormScreen() {
                 },
               ]}
             />
-
             <TouchableOpacity
               style={[
                 styles.addButton,
@@ -577,32 +625,6 @@ export default function WordFormScreen() {
           </View>
         )}
 
-        {isSingleFormMode && <TouchableOpacity
-          style={[
-            styles.addButton,
-            {
-              backgroundColor: canAdd
-                ? theme.primary
-                : theme.border,
-            },
-          ]}
-          disabled={!canAdd}
-          onPress={handleAdd}
-        >
-          <Text
-            style={[
-              styles.addButtonText,
-              {
-                color: canAdd
-                  ? theme.primaryText
-                  : theme.secondaryText,
-              },
-            ]}
-          >
-            {editingWord ? 'Сохранить изменения' : 'Добавить слово'}
-          </Text>
-        </TouchableOpacity>}
-
         <TouchableOpacity
           style={styles.doneButton}
           onPress={() => navigation.goBack()}
@@ -617,6 +639,7 @@ export default function WordFormScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -625,9 +648,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  formScroll: {
+    flex: 1,
+  },
 
   content: {
     padding: 20,
+    paddingBottom: 12,
   },
 
   title: {
@@ -787,10 +817,11 @@ const styles = StyleSheet.create({
     minHeight: 110,
     borderWidth: 1,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
     textAlignVertical: 'top',
+    marginTop: 8,
   },
 
   bulkLabel: {
@@ -801,16 +832,16 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    height: 54,
+    minHeight: 54,
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 17,
-    marginBottom: 20,
+    marginBottom: 8,
   },
 
   addButton: {
-    height: 54,
+    minHeight: 48,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',

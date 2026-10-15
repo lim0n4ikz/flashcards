@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,8 +17,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '../context/AppContext';
 
+const GROUPS_PREVIEW_LIMIT = 4;
+
 export default function LearnScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const [showAllGroups, setShowAllGroups] = useState(false);
+  const [groupSearch, setGroupSearch] = useState('');
+
+  useEffect(() => {
+    setShowAllGroups(false);
+  }, [groupSearch]);
 
   const {
     theme,
@@ -38,6 +47,14 @@ export default function LearnScreen() {
   const remembered = activeProfileWords.filter(
     (word) => word.status === 'remembered'
   ).length;
+
+  const filteredGroups = activeProfileWordGroups.filter((group) =>
+    group.name.toLowerCase().includes(groupSearch.trim().toLowerCase())
+  );
+  const visibleGroups =
+    showAllGroups || filteredGroups.length <= GROUPS_PREVIEW_LIMIT
+      ? filteredGroups
+      : filteredGroups.slice(0, GROUPS_PREVIEW_LIMIT);
 
   return (
     <SafeAreaView
@@ -172,7 +189,7 @@ export default function LearnScreen() {
                 { color: theme.text },
               ]}
             >
-              Новые слова
+              Повторить новые слова
             </Text>
 
             <Text
@@ -201,7 +218,22 @@ export default function LearnScreen() {
               Группы слов
             </Text>
 
-            {activeProfileWordGroups.map((group) => {
+            <TextInput
+              value={groupSearch}
+              onChangeText={setGroupSearch}
+              placeholder="Поиск групп"
+              placeholderTextColor={theme.secondaryText}
+              style={[
+                styles.groupSearchInput,
+                {
+                  color: theme.text,
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            />
+
+            {visibleGroups.map((group) => {
               const groupWords = activeProfileWords.filter(
                 (word) => word.groupId === group.id
               );
@@ -294,10 +326,46 @@ export default function LearnScreen() {
                     >
                       <Text style={[styles.groupActionText, { color: theme.primary }]}>Повторить незапомненные</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.groupActionButton,
+                        { backgroundColor: theme.background, borderColor: theme.border },
+                      ]}
+                      onPress={() =>
+                        navigation.navigate('Flashcards', {
+                          mode: 'new',
+                          groupId: group.id,
+                        })
+                      }
+                    >
+                      <Text style={[styles.groupActionText, { color: theme.primary }]}>Повторить новые</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               );
             })}
+
+            {filteredGroups.length === 0 && (
+              <Text style={[styles.noGroupsText, { color: theme.secondaryText }]}>
+                Группы не найдены
+              </Text>
+            )}
+
+            {filteredGroups.length > GROUPS_PREVIEW_LIMIT && (
+              <TouchableOpacity
+                style={[
+                  styles.showAllGroupsButton,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+                onPress={() => setShowAllGroups((shown) => !shown)}
+              >
+                <Text style={[styles.showAllGroupsText, { color: theme.primary }]}>
+                  {showAllGroups
+                    ? 'Свернуть группы'
+                    : `Показать все группы (${filteredGroups.length})`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -383,6 +451,34 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  groupSearchInput: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+
+  noGroupsText: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+
+  showAllGroupsButton: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+
+  showAllGroupsText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
   groupCard: {
     borderWidth: 1,
     borderRadius: 18,
@@ -398,12 +494,15 @@ const styles = StyleSheet.create({
 
   groupActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 10,
   },
 
   groupActionButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
+    minWidth: 110,
     minHeight: 38,
     borderWidth: 1,
     borderRadius: 10,

@@ -52,7 +52,7 @@ export default function HomeScreen() {
                 { color: theme.secondaryText },
               ]}
             >
-              Привет, {activeProfile.name}! 👋
+              Профиль: {activeProfile.name}
             </Text>
 
             <TouchableOpacity
@@ -157,7 +157,7 @@ export default function HomeScreen() {
                 styles.button,
                 { backgroundColor: theme.primary },
               ]}
-              onTouchEnd={() => navigation.navigate('Profiles')}
+              onTouchEnd={() => navigation.navigate('ProfileForm')}
             >
               <Text
                 style={[

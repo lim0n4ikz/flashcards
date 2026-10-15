@@ -27,6 +27,7 @@ import {
   parseImportedFile,
   saveTextFile,
   shareTextFile,
+  type ImportedWord,
 } from '../storage/backup';
 import {
   checkForUpdate,
@@ -36,6 +37,17 @@ import {
 
 type NavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
+
+type CsvGroupOption = {
+  id: string;
+  label: string;
+  groupId?: string | null;
+  groupName?: string;
+};
+
+type CsvPickerState =
+  | { action: 'save' | 'share' }
+  | null;
 
 export default function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -59,6 +71,28 @@ export default function SettingsScreen() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [isAllWordsModalVisible, setIsAllWordsModalVisible] = useState(false);
+  const [csvPicker, setCsvPicker] = useState<CsvPickerState>(null);
+  const [selectedCsvGroupId, setSelectedCsvGroupId] = useState('all');
+
+  const csvGroupOptions: CsvGroupOption[] = [
+    { id: 'all', label: 'Все группы' },
+    ...(activeProfile
+      ? data.wordGroups
+          .filter((group) => group.profileId === activeProfile.id)
+          .map((group) => ({
+            id: `group:${group.id}`,
+            label: group.name,
+            groupId: group.id,
+          }))
+      : []),
+    ...(activeProfile &&
+    data.words.some(
+      (word) =>
+        word.profileId === activeProfile.id && word.groupId === null
+    )
+      ? [{ id: 'ungrouped', label: 'Без группы', groupId: null }]
+      : []),
+  ];
 
   const handleStartEditing = () => {
     setProfileName(activeProfile?.name ?? '');
@@ -149,6 +183,11 @@ export default function SettingsScreen() {
     return `flashcards-${date}.${extension}`;
   };
 
+  const readPickedFile = (uri: string) =>
+    FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
   const handleRequestDownloadsAccess = async () => {
     if (Platform.OS !== 'android') {
       Alert.alert('Только Android', 'Эта функция доступна только на Android.');
@@ -234,46 +273,154 @@ export default function SettingsScreen() {
     }
   };
 
-  const saveCsv = async () => {
+  const openCsvPicker = (action: 'save' | 'share') => {
     if (!activeProfile) {
       Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
       return;
     }
 
-    try {
-      await saveTextFile(
-        createWordsCsv(data, activeProfile.id),
-        getFileName('csv'),
-        'text/csv'
-      );
+    setSelectedCsvGroupId('all');
+    setCsvPicker({ action });
+  };
 
+  const importCsvWords = async (
+    words: ImportedWord[],
+    sourceGroupNames: string[]
+  ) => {
+    const now = new Date();
+    const dateTime = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-') + ` ${[
+      String(now.getHours()).padStart(2, '0'),
+      String(now.getMinutes()).padStart(2, '0'),
+      String(now.getSeconds()).padStart(2, '0'),
+    ].join('-')}`;
+    const existingGroupNames = new Set(
+      data.wordGroups
+        .filter((group) => group.profileId === activeProfile?.id)
+        .map((group) => group.name.trim().toLowerCase())
+    );
+    const getUniqueGroupName = (baseName: string) => {
+      let groupName = baseName;
+      let suffix = 2;
+
+      while (existingGroupNames.has(groupName.toLowerCase())) {
+        groupName = `${baseName} (${suffix})`;
+        suffix += 1;
+      }
+
+      existingGroupNames.add(groupName.toLowerCase());
+      return groupName;
+    };
+    const sourceNames = new Map<string, string>();
+    [...sourceGroupNames, ...words.map((word) => word.groupName ?? '')]
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .forEach((name) => {
+        const key = name.toLowerCase();
+        if (!sourceNames.has(key)) {
+          sourceNames.set(key, name);
+        }
+      });
+    const groupNameBySource = new Map<string, string>();
+    const importGroupNames = [...sourceNames.entries()].map(([key, sourceName]) => {
+      const groupName = getUniqueGroupName(
+        `${sourceName} — Импорт — ${dateTime}`
+      );
+      groupNameBySource.set(key, groupName);
+      return groupName;
+    });
+    const ungroupedWordsExist = words.some((word) => !word.groupName?.trim());
+    const ungroupedImportGroupName = ungroupedWordsExist
+      ? getUniqueGroupName(`Импорт без группы — ${dateTime}`)
+      : undefined;
+    if (ungroupedImportGroupName) {
+      importGroupNames.push(ungroupedImportGroupName);
+    }
+    const wordsInImportGroups = words.map((word) => ({
+      ...word,
+      groupName: word.groupName?.trim()
+        ? groupNameBySource.get(word.groupName.trim().toLowerCase()) ??
+          getUniqueGroupName(`${word.groupName.trim()} — Импорт — ${dateTime}`)
+        : ungroupedImportGroupName,
+    }));
+
+    try {
+      const { addedCount, assignedCount } = await importWords(
+        wordsInImportGroups,
+        importGroupNames,
+        'use-imported-group'
+      );
+      const visibleGroupNames = importGroupNames.slice(0, 5);
+      const remainingGroupCount = importGroupNames.length - visibleGroupNames.length;
+      const resultMessage = [
+        `Создано групп: ${importGroupNames.length}.`,
+        ...visibleGroupNames.map((groupName) => `• ${groupName}`),
+        remainingGroupCount > 0
+          ? `И ещё групп: ${remainingGroupCount}.`
+          : '',
+        addedCount ? `Добавлено новых слов: ${addedCount}.` : '',
+        assignedCount
+          ? `Существующих слов перемещено в новую группу: ${assignedCount}.`
+          : '',
+        !addedCount && !assignedCount
+          ? 'Новых слов нет: все пары переводов уже были в профиле.'
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
       Alert.alert(
-        'Готово',
-        'Файл с словами сохранён в папку Downloads на устройстве.'
+        'Импорт завершён',
+        resultMessage
       );
     } catch (error) {
       Alert.alert(
-        'Не удалось экспортировать слова',
-        error instanceof Error ? error.message : 'Попробуйте ещё раз.'
+        'Не удалось импортировать слова',
+        error instanceof Error ? error.message : 'Проверьте формат файла.'
       );
     }
   };
 
-  const shareCsv = async () => {
+  const handleConfirmCsvPicker = async () => {
+    if (!csvPicker) {
+      return;
+    }
+
     if (!activeProfile) {
+      setCsvPicker(null);
       Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
       return;
     }
 
+    const selectedOption = csvGroupOptions.find(
+      (option) => option.id === selectedCsvGroupId
+    );
+    const groupId =
+      selectedCsvGroupId === 'all'
+        ? 'all'
+        : selectedCsvGroupId === 'ungrouped'
+          ? null
+          : selectedOption?.groupId ?? 'all';
+    const csv = createWordsCsv(data, activeProfile.id, groupId);
+    setCsvPicker(null);
+
     try {
-      await shareTextFile(
-        createWordsCsv(data, activeProfile.id),
-        getFileName('csv'),
-        'text/csv'
-      );
+      if (csvPicker.action === 'save') {
+        await saveTextFile(csv, getFileName('csv'), 'text/csv');
+        Alert.alert(
+          'Готово',
+          'CSV-файл выбранной группы сохранён в папку Downloads на устройстве.'
+        );
+      } else {
+        await shareTextFile(csv, getFileName('csv'), 'text/csv');
+      }
     } catch (error) {
       Alert.alert(
-        'Не удалось отправить слова',
+        csvPicker.action === 'save'
+          ? 'Не удалось экспортировать слова'
+          : 'Не удалось отправить слова',
         error instanceof Error ? error.message : 'Попробуйте ещё раз.'
       );
     }
@@ -301,43 +448,11 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleSaveCsv = () => {
-    if (!activeProfile) {
-      Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
-      return;
-    }
-
-    Alert.alert(
-      'Сохранить CSV?',
-      'Слова выбранного профиля будут сохранены в папку Downloads.',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Подтвердить', onPress: saveCsv },
-      ]
-    );
-  };
-
-  const handleShareCsv = () => {
-    if (!activeProfile) {
-      Alert.alert('Нужен профиль', 'Выберите профиль перед экспортом CSV.');
-      return;
-    }
-
-    Alert.alert(
-      'Отправить CSV?',
-      'Файл со словами выбранного профиля будет подготовлен для отправки.',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Подтвердить', onPress: shareCsv },
-      ]
-    );
-  };
-
   const handleImportJson = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/json',
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: Platform.OS !== 'android',
       });
 
       if (result.canceled) {
@@ -345,9 +460,7 @@ export default function SettingsScreen() {
       }
 
       const asset = result.assets[0];
-      const content = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      const content = await readPickedFile(asset.uri);
       const imported = parseImportedFile(content, asset.name);
 
       if (imported.type !== 'json') {
@@ -381,7 +494,7 @@ export default function SettingsScreen() {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['text/csv', 'text/comma-separated-values', 'text/plain'],
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: Platform.OS !== 'android',
       });
 
       if (result.canceled) {
@@ -397,22 +510,14 @@ export default function SettingsScreen() {
       }
 
       const asset = result.assets[0];
-      const content = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      const content = await readPickedFile(asset.uri);
       const imported = parseImportedFile(content, asset.name);
 
       if (imported.type !== 'csv') {
         throw new Error('Выберите CSV-файл со словами.');
       }
 
-      const importedCount = await importWords(imported.words);
-      Alert.alert(
-        'Импорт завершён',
-        importedCount
-          ? `Добавлено слов: ${importedCount}. Дубли пропущены.`
-          : 'Новых слов не найдено. Дубли пропущены.'
-      );
+      await importCsvWords(imported.words, imported.groupNames);
     } catch (error) {
       Alert.alert(
         'Не удалось импортировать слова',
@@ -618,9 +723,7 @@ export default function SettingsScreen() {
                     borderColor: theme.border,
                   },
                 ]}
-                onPress={() =>
-                  navigation.navigate('Profiles')
-                }
+                onPress={() => navigation.navigate('Profiles')}
               >
                 <View style={styles.menuText}>
                   <Text
@@ -642,7 +745,7 @@ export default function SettingsScreen() {
                       },
                     ]}
                   >
-                    Создать или выбрать другой профиль
+                    Выбрать другой профиль
                   </Text>
                 </View>
 
@@ -679,7 +782,7 @@ export default function SettingsScreen() {
                   },
                 ]}
               >
-                Создай профиль, чтобы начать обучение.
+                Перейдите в раздел профилей, чтобы выбрать или создать профиль.
               </Text>
 
               <TouchableOpacity
@@ -701,7 +804,7 @@ export default function SettingsScreen() {
                     },
                   ]}
                 >
-                  Открыть профили
+                  Перейти к профилям
                 </Text>
               </TouchableOpacity>
             </View>
@@ -918,7 +1021,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.dataAction, { borderColor: theme.border }]}
-            onPress={handleSaveCsv}
+            onPress={() => openCsvPicker('save')}
           >
             <View style={styles.menuText}>
               <Text style={[styles.menuTitle, { color: theme.text }]}>Экспорт CSV</Text>
@@ -929,7 +1032,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.dataAction, styles.topBorder, { borderColor: theme.border }]}
-            onPress={handleShareCsv}
+            onPress={() => openCsvPicker('share')}
           >
             <View style={styles.menuText}>
               <Text style={[styles.menuTitle, { color: theme.text }]}>Отправить CSV</Text>
@@ -1236,6 +1339,93 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={csvPicker !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCsvPicker(null)}
+      >
+        <View style={styles.wordsModalOverlay}>
+          <View
+            style={[
+              styles.wordsModal,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <View style={styles.wordsModalHeader}>
+              <View style={styles.menuText}>
+                <Text style={[styles.wordsModalTitle, { color: theme.text }]}>
+                  Выберите группу для экспорта
+                </Text>
+                <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>
+                  Можно экспортировать одну группу или все группы.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.wordsModalClose, { borderColor: theme.border }]}
+                onPress={() => setCsvPicker(null)}
+              >
+                <Text style={[styles.wordsModalCloseText, { color: theme.text }]}>
+                  Закрыть
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.allWordsList}
+              showsVerticalScrollIndicator={false}
+            >
+              {csvGroupOptions.map((option) => {
+                const selected = selectedCsvGroupId === option.id;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.csvGroupOption,
+                      {
+                        backgroundColor: selected ? theme.primary : theme.card,
+                        borderColor: selected ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setSelectedCsvGroupId(option.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.csvGroupOptionText,
+                        { color: selected ? theme.primaryText : theme.text },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.csvGroupOptionText,
+                        { color: selected ? theme.primaryText : theme.primary },
+                      ]}
+                    >
+                      {selected ? '✓' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+              onPress={handleConfirmCsvPicker}
+            >
+              <Text style={[styles.primaryButtonText, { color: theme.primaryText }]}>
+                {csvPicker?.action === 'share'
+                  ? 'Отправить CSV'
+                  : 'Сохранить CSV'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <UpdateModal
         theme={theme}
         update={updateInfo}
@@ -1534,6 +1724,22 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  csvGroupOption: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  csvGroupOptionText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
   version: {
     textAlign: 'center',
     fontSize: 12,
@@ -1546,4 +1752,3 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 });
-

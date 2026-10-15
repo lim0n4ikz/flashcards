@@ -25,16 +25,18 @@ type WordsRouteProp = RouteProp<RootTabParamList, 'Words'>;
 type FilterMode = 'all' | 'new' | 'needsReview' | 'remembered';
 
 const WORDS_PREVIEW_LIMIT = 30;
+const GROUPS_PREVIEW_LIMIT = 4;
 
 export default function WordsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<WordsRouteProp>();
   const [search, setSearch] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>(
     route.params?.filter ?? 'all'
   );
   const [showAllWords, setShowAllWords] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
+  const [showAllGroups, setShowAllGroups] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
@@ -50,7 +52,6 @@ export default function WordsScreen() {
     activeProfile,
     activeProfileWords,
     activeProfileWordGroups,
-    createWordGroup,
     editWordGroup,
     deleteWordGroup,
     deleteWordsByGroup,
@@ -109,12 +110,18 @@ export default function WordsScreen() {
     setShowAllWords(false);
   }, [filter, search, focusedGroupId, ungroupedOnly]);
 
+  useEffect(() => {
+    setShowAllGroups(false);
+  }, [groupSearch]);
+
   useFocusEffect(
     React.useCallback(() => {
       setShowAllWords(false);
+      setShowAllGroups(false);
 
       return () => {
         setShowAllWords(false);
+        setShowAllGroups(false);
       };
     }, [])
   );
@@ -126,6 +133,14 @@ export default function WordsScreen() {
 
     return filteredWords.slice(0, WORDS_PREVIEW_LIMIT);
   }, [filteredWords, showAllWords]);
+
+  const filteredGroups = activeProfileWordGroups.filter((group) =>
+    group.name.toLowerCase().includes(groupSearch.trim().toLowerCase())
+  );
+  const visibleGroups =
+    showAllGroups || filteredGroups.length <= GROUPS_PREVIEW_LIMIT
+      ? filteredGroups
+      : filteredGroups.slice(0, GROUPS_PREVIEW_LIMIT);
 
   const focusedGroup = activeProfileWordGroups.find(
     (group) => group.id === focusedGroupId
@@ -165,10 +180,10 @@ export default function WordsScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.primary }]}
-            onPress={() => navigation.navigate('Profiles')}
+            onPress={() => navigation.navigate('ProfileForm')}
           >
             <Text style={[styles.buttonText, { color: theme.primaryText }]}>
-              Открыть профили
+              Создать профиль
             </Text>
           </TouchableOpacity>
         </View>
@@ -191,7 +206,11 @@ export default function WordsScreen() {
 
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: theme.primary }]}
-            onPress={() => navigation.navigate('WordForm')}
+            onPress={() =>
+              navigation.navigate('WordForm', {
+                groupId: ungroupedOnly ? null : focusedGroupId,
+              })
+            }
           >
             <Text style={[styles.addButtonText, { color: theme.primaryText }]}>
               + Добавить
@@ -199,55 +218,24 @@ export default function WordsScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.groupCreator}>
-          <TextInput
-            value={newGroupName}
-            onChangeText={setNewGroupName}
-            placeholder="Новая группа слов"
-            placeholderTextColor={theme.secondaryText}
-            style={[
-              styles.groupInput,
-              {
-                color: theme.text,
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-              },
-            ]}
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.groupCreateButton,
-              {
-                backgroundColor: newGroupName.trim() ? theme.primary : theme.border,
-              },
-            ]}
-            disabled={!newGroupName.trim()}
-            onPress={async () => {
-              if (!newGroupName.trim()) {
-                return;
-              }
-
-              await createWordGroup(newGroupName);
-              setNewGroupName('');
-            }}
-          >
-            <Text
-              style={[
-                styles.groupCreateButtonText,
-                {
-                  color: newGroupName.trim() ? theme.primaryText : theme.secondaryText,
-                },
-              ]}
-            >
-              Создать
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         {activeProfileWordGroups.length > 0 && (
           <View style={styles.groupList}>
-            {activeProfileWordGroups.map((group) => {
+            <TextInput
+              value={groupSearch}
+              onChangeText={setGroupSearch}
+              placeholder="Поиск групп"
+              placeholderTextColor={theme.secondaryText}
+              style={[
+                styles.groupSearchInput,
+                {
+                  color: theme.text,
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            />
+
+            {visibleGroups.map((group) => {
               const groupWordsCount = activeProfileWords.filter(
                 (word) => word.groupId === group.id
               ).length;
@@ -406,6 +394,26 @@ export default function WordsScreen() {
                 </View>
               );
             })}
+            {filteredGroups.length === 0 && (
+              <Text style={[styles.groupMeta, { color: theme.secondaryText }]}>
+                Группы не найдены
+              </Text>
+            )}
+            {filteredGroups.length > GROUPS_PREVIEW_LIMIT && (
+              <TouchableOpacity
+                style={[
+                  styles.showAllButton,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+                onPress={() => setShowAllGroups((shown) => !shown)}
+              >
+                <Text style={[styles.showAllButtonText, { color: theme.primary }]}>
+                  {showAllGroups
+                    ? 'Свернуть группы'
+                    : `Показать все группы (${filteredGroups.length})`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -482,7 +490,15 @@ export default function WordsScreen() {
         </View>
 
         {selectedWordIds.length > 0 && (
-          <View style={styles.movePanel}>
+          <View
+            style={[
+              styles.movePanel,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              },
+            ]}
+          >
             <Text style={[styles.moveTitle, { color: theme.text }]}>
               Переместить выделенные: {selectedWordIds.length}
             </Text>
@@ -695,13 +711,19 @@ export default function WordsScreen() {
               </TouchableOpacity>
 
               <View style={styles.wordInfo}>
-                <Text style={[styles.english, { color: theme.text }]}>
+                <Text
+                  style={[styles.english, { color: theme.text }]}
+                >
                   {item.english}
                 </Text>
-                <Text style={[styles.russian, { color: theme.secondaryText }]}>
+                <Text
+                  style={[styles.russian, { color: theme.secondaryText }]}
+                >
                   {item.russian}
                 </Text>
-                <Text style={[styles.groupHint, { color: theme.secondaryText }]}>
+                <Text
+                  style={[styles.groupHint, { color: theme.secondaryText }]}
+                >
                   {item.groupId
                     ? `Группа: ${activeProfileWordGroups.find((group) => group.id === item.groupId)?.name ?? '...'}`
                     : 'Без группы'}
@@ -825,30 +847,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  groupCreator: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  groupInput: {
-    flex: 1,
-    minHeight: 46,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    fontSize: 15,
-  },
-  groupCreateButton: {
-    minWidth: 96,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  groupCreateButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   bulkWrap: {
     marginBottom: 16,
   },
@@ -883,6 +881,13 @@ const styles = StyleSheet.create({
   groupList: {
     gap: 10,
     marginBottom: 16,
+  },
+  groupSearchInput: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 15,
   },
   groupItem: {
     flexDirection: 'row',
@@ -939,8 +944,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 14,
     padding: 14,
-    backgroundColor: '#FFF7ED',
-    borderColor: '#F59E0B',
   },
 
   deleteSelectedButton: {

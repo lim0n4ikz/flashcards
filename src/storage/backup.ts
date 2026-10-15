@@ -25,7 +25,7 @@ function parseCsvLine(line: string): string[] {
   for (let index = 0; index < line.length; index += 1) {
     const character = line[index];
 
-    if (character === '"' && line[index + 1] === '"') {
+    if (character === '"' && quoted && line[index + 1] === '"') {
       value += '"';
       index += 1;
     } else if (character === '"') {
@@ -46,20 +46,43 @@ export function createJsonBackup(data: AppData): string {
   return JSON.stringify(data, null, 2);
 }
 
-export function createWordsCsv(data: AppData, profileId: string): string {
+export function createWordsCsv(
+  data: AppData,
+  profileId: string,
+  groupId: string | null | 'all' = 'all'
+): string {
   const rows = ['english,russian,group'];
 
-  data.words
-    .filter((word) => word.profileId === profileId)
-    .forEach((word) => {
-      const group = data.wordGroups.find((item) => item.id === word.groupId);
+  const exportedWords = data.words
+    .filter(
+      (word) =>
+        word.profileId === profileId &&
+        (groupId === 'all' || word.groupId === groupId)
+    );
 
-      rows.push(
-        [word.english, word.russian, group?.name ?? '']
-          .map(escapeCsv)
-          .join(',')
-      );
-    });
+  exportedWords.forEach((word) => {
+    const group = data.wordGroups.find((item) => item.id === word.groupId);
+
+    rows.push(
+      [word.english, word.russian, group?.name ?? '']
+        .map(escapeCsv)
+        .join(',')
+    );
+  });
+
+  const exportedGroupIds = new Set(
+    exportedWords.map((word) => word.groupId).filter(Boolean)
+  );
+  data.wordGroups
+    .filter(
+      (group) =>
+        group.profileId === profileId &&
+        (groupId === 'all' || group.id === groupId) &&
+        !exportedGroupIds.has(group.id)
+    )
+    .forEach((group) =>
+      rows.push(['', '', group.name].map(escapeCsv).join(','))
+    );
 
   return `\uFEFF${rows.join('\n')}`;
 }
@@ -67,7 +90,9 @@ export function createWordsCsv(data: AppData, profileId: string): string {
 export function parseImportedFile(
   content: string,
   fileName?: string
-): { type: 'json'; data: AppData } | { type: 'csv'; words: ImportedWord[] } {
+):
+  | { type: 'json'; data: AppData }
+  | { type: 'csv'; words: ImportedWord[]; groupNames: string[] } {
   const trimmedContent = content.trim();
   const looksLikeJson =
     fileName?.toLowerCase().endsWith('.json') ||
@@ -93,7 +118,7 @@ export function parseImportedFile(
     .filter((line) => line.trim());
 
   if (lines.length < 2) {
-    throw new Error('CSV-файл не содержит слов.');
+    throw new Error('CSV-файл не содержит слов или групп.');
   }
 
   const header = parseCsvLine(lines[0]).map((item) =>
@@ -125,13 +150,20 @@ export function parseImportedFile(
       );
     }
 
-    return { type: 'csv', words };
+    return { type: 'csv', words, groupNames: [] };
   }
 
+  const groupNames = new Set<string>();
   const words = lines.slice(1).flatMap((line) => {
     const values = parseCsvLine(line);
     const english = values[englishIndex]?.trim();
     const russian = values[russianIndex]?.trim();
+    const groupName =
+      groupIndex === -1 ? undefined : values[groupIndex]?.trim();
+
+    if (groupName) {
+      groupNames.add(groupName);
+    }
 
     if (!english || !russian) {
       return [];
@@ -141,17 +173,16 @@ export function parseImportedFile(
       {
         english,
         russian,
-        groupName:
-          groupIndex === -1 ? undefined : values[groupIndex]?.trim(),
+        groupName: groupName || undefined,
       },
     ];
   });
 
-  if (!words.length) {
+  if (!words.length && !groupNames.size) {
     throw new Error('CSV-файл не содержит корректных слов.');
   }
 
-  return { type: 'csv', words };
+  return { type: 'csv', words, groupNames: [...groupNames] };
 }
 
 export async function saveTextFile(

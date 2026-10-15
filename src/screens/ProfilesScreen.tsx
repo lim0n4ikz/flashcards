@@ -219,12 +219,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-  deleteText: {
-    fontSize: 14,
-    fontWeight: '600',
-    padding: 8,
-  },
-
   createButton: {
     minHeight: 52,
     borderRadius: 14,
@@ -237,6 +231,12 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  deleteText: {
+    fontSize: 14,
+    fontWeight: '600',
+    padding: 8,
   },
 
   searchInput: {

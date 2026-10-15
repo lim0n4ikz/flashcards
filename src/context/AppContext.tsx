@@ -75,7 +75,11 @@ interface AppContextValue {
   resetAllData: () => Promise<void>;
   restoreAppData: (nextData: AppData) => Promise<void>;
   restoreLastBackup: () => Promise<boolean>;
-  importWords: (words: ImportedWord[]) => Promise<number>;
+  importWords: (
+    words: ImportedWord[],
+    groupNames?: string[],
+    existingWordPolicy?: 'keep' | 'use-imported-group'
+  ) => Promise<{ addedCount: number; assignedCount: number }>;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -153,8 +157,7 @@ export function AppProvider({
       await updateData((current) => ({
         ...current,
         profiles: [...current.profiles, profile],
-        activeProfileId:
-          current.activeProfileId ?? profile.id,
+        activeProfileId: profile.id,
       }));
     },
     [updateData]
@@ -489,8 +492,13 @@ export function AppProvider({
   }, [updateData]);
 
   const importWords = useCallback(
-    async (words: ImportedWord[]) => {
-      let importedCount = 0;
+    async (
+      words: ImportedWord[],
+      groupNames: string[] = [],
+      existingWordPolicy: 'keep' | 'use-imported-group' = 'use-imported-group'
+    ) => {
+      let addedCount = 0;
+      let assignedCount = 0;
 
       await updateData((current) => {
         if (!current.activeProfileId) {
@@ -498,15 +506,15 @@ export function AppProvider({
         }
 
         const profileId = current.activeProfileId;
-        const existingKeys = new Set(
+        const existingWordsByKey = new Map(
           current.words
             .filter((word) => word.profileId === profileId)
-            .map(
-              (word) =>
-                `${word.english.trim().toLowerCase()}\u0000${word.russian
-                  .trim()
-                  .toLowerCase()}`
-            )
+            .map((word) => [
+              `${word.english.trim().toLowerCase()}\u0000${word.russian
+                .trim()
+                .toLowerCase()}`,
+              word,
+            ])
         );
         const groupsByName = new Map(
           current.wordGroups
@@ -515,15 +523,40 @@ export function AppProvider({
         );
         const newGroups: WordGroup[] = [];
         const newWords: Word[] = [];
+        const updatedWordsById = new Map<string, Word>();
+        const importedKeys = new Set<string>();
+
+        groupNames.forEach((name) => {
+          const trimmedName = name.trim();
+          const groupKey = trimmedName.toLowerCase();
+
+          if (!trimmedName || groupsByName.has(groupKey)) {
+            return;
+          }
+
+          const group: WordGroup = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            profileId,
+            name: trimmedName,
+            createdAt: new Date().toISOString(),
+          };
+          groupsByName.set(groupKey, group);
+          newGroups.push(group);
+        });
 
         words.forEach((item) => {
           const english = item.english.trim();
           const russian = item.russian.trim();
           const key = `${english.toLowerCase()}\u0000${russian.toLowerCase()}`;
 
-          if (!english || !russian || existingKeys.has(key)) {
+          if (!english || !russian) {
             return;
           }
+
+          if (importedKeys.has(key)) {
+            return;
+          }
+          importedKeys.add(key);
 
           let groupId: string | null = null;
           const groupName = item.groupName?.trim();
@@ -546,9 +579,22 @@ export function AppProvider({
             groupId = group.id;
           }
 
-          existingKeys.add(key);
-          importedCount += 1;
-          newWords.push({
+          const existingWord = existingWordsByKey.get(key);
+          if (existingWord) {
+            if (
+              existingWordPolicy === 'use-imported-group' &&
+              groupId &&
+              existingWord.groupId !== groupId
+            ) {
+              const updatedWord = { ...existingWord, groupId };
+              updatedWordsById.set(existingWord.id, updatedWord);
+              existingWordsByKey.set(key, updatedWord);
+              assignedCount += 1;
+            }
+            return;
+          }
+
+          const newWord: Word = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             profileId,
             groupId,
@@ -557,17 +603,25 @@ export function AppProvider({
             status: 'new' as const,
             createdAt: new Date().toISOString(),
             reviewCount: 0,
-          });
+          };
+          existingWordsByKey.set(key, newWord);
+          addedCount += 1;
+          newWords.push(newWord);
         });
 
         return {
           ...current,
           wordGroups: [...current.wordGroups, ...newGroups],
-          words: [...current.words, ...newWords],
+          words: [
+            ...current.words.map(
+              (word) => updatedWordsById.get(word.id) ?? word
+            ),
+            ...newWords,
+          ],
         };
       });
 
-      return importedCount;
+      return { addedCount, assignedCount };
     },
     [updateData]
   );
