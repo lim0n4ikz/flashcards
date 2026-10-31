@@ -31,6 +31,8 @@ import {
 } from '../storage/backup';
 import {
   checkForUpdate,
+  compareVersions,
+  fetchLatestVersion,
   getCurrentVersion,
   type UpdateInfo,
 } from '../services/updateService';
@@ -167,15 +169,36 @@ export default function SettingsScreen() {
     }
 
     setIsCheckingUpdate(true);
-    const update = await checkForUpdate();
-    setIsCheckingUpdate(false);
 
-    if (update) {
-      setUpdateInfo(update);
-      return;
+    try {
+      const latest = await fetchLatestVersion();
+      const currentVersion = getCurrentVersion();
+
+      if (compareVersions(currentVersion, latest.version ?? '0.0.0') > 0) {
+        Alert.alert(
+          '🔓 Секретный режим активирован',
+          'Похоже, у тебя установлена версия новее официального релиза на GitHub. Это может быть экспериментальная сборка, бета-версия или локальная версия из будущего. Ты уже на шаг впереди — и это, конечно, очень круто.'
+        );
+        setUpdateInfo(null);
+        return;
+      }
+
+      const update = await checkForUpdate();
+
+      if (update) {
+        setUpdateInfo(update);
+        return;
+      }
+
+      Alert.alert('Обновлений нет', 'Установлена актуальная версия приложения.');
+    } catch {
+      Alert.alert(
+        'Проверка обновлений',
+        'Не удалось связаться с GitHub. Попробуйте позже.'
+      );
+    } finally {
+      setIsCheckingUpdate(false);
     }
-
-    Alert.alert('Обновлений нет', 'Установлена актуальная версия приложения.');
   };
 
   const getFileName = (extension: string) => {
@@ -1247,7 +1270,7 @@ export default function SettingsScreen() {
             },
           ]}
         >
-          Мой английский
+          Flashcards
         </Text>
 
         <Text

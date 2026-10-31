@@ -317,7 +317,7 @@ export default function FlashcardsScreen() {
                   },
                 ]}
               >
-                {direction === 'english' ? 'EN → RU' : 'RU → EN'}
+                {direction === 'english' ? 'Вопрос → ответ' : 'Ответ → вопрос'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -380,8 +380,8 @@ export default function FlashcardsScreen() {
           ]}
         >
           {learningDirection === 'english'
-            ? 'Сначала попробуй вспомнить перевод'
-            : 'Сначала попробуй вспомнить слово'}
+            ? 'Сначала попробуй вспомнить ответ'
+            : 'Сначала попробуй вспомнить вопрос'}
         </Text>
 
         <View style={styles.actions}>
