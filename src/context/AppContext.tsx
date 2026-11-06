@@ -36,6 +36,7 @@ interface AppContextValue {
 
   createProfile: (name: string) => Promise<void>;
   updateProfile: (profileId: string, name: string) => Promise<void>;
+  moveProfile: (profileId: string, direction: 'up' | 'down') => Promise<void>;
   selectProfile: (profileId: string) => Promise<void>;
   deleteProfile: (profileId: string) => Promise<void>;
 
@@ -182,6 +183,33 @@ export function AppProvider({
             : profile
         ),
       }));
+    },
+    [updateData]
+  );
+
+  const moveProfile = useCallback(
+    async (profileId: string, direction: 'up' | 'down') => {
+      await updateData((current) => {
+        const index = current.profiles.findIndex(
+          (profile) => profile.id === profileId
+        );
+        const targetIndex = index + (direction === 'up' ? -1 : 1);
+
+        if (index < 0 || targetIndex < 0 || targetIndex >= current.profiles.length) {
+          return current;
+        }
+
+        const profiles = [...current.profiles];
+        [profiles[index], profiles[targetIndex]] = [
+          profiles[targetIndex],
+          profiles[index],
+        ];
+
+        return {
+          ...current,
+          profiles,
+        };
+      });
     },
     [updateData]
   );
@@ -669,6 +697,7 @@ export function AppProvider({
 
       createProfile,
       updateProfile,
+      moveProfile,
       selectProfile,
       deleteProfile,
 
@@ -703,6 +732,7 @@ export function AppProvider({
       activeProfileWordGroups,
       createProfile,
       updateProfile,
+      moveProfile,
       selectProfile,
       deleteProfile,
       createWordGroup,

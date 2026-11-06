@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Linking,
   Modal,
   Platform,
   StyleSheet,
@@ -58,7 +59,6 @@ export default function SettingsScreen() {
     theme,
     data,
     activeProfile,
-    updateProfile,
     setTheme,
     resetAllData,
     restoreAppData,
@@ -66,10 +66,6 @@ export default function SettingsScreen() {
     importWords,
   } = useApp();
 
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [profileName, setProfileName] = useState(
-    activeProfile?.name ?? ''
-  );
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [isAllWordsModalVisible, setIsAllWordsModalVisible] = useState(false);
@@ -95,30 +91,6 @@ export default function SettingsScreen() {
       ? [{ id: 'ungrouped', label: 'Без группы', groupId: null }]
       : []),
   ];
-
-  const handleStartEditing = () => {
-    setProfileName(activeProfile?.name ?? '');
-    setEditingProfile(true);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!activeProfile) {
-      return;
-    }
-
-    const trimmedName = profileName.trim();
-
-    if (!trimmedName) {
-      Alert.alert(
-        'Ошибка',
-        'Имя профиля не может быть пустым.'
-      );
-      return;
-    }
-
-    await updateProfile(activeProfile.id, trimmedName);
-    setEditingProfile(false);
-  };
 
   const handleReset = () => {
     Alert.alert(
@@ -198,6 +170,17 @@ export default function SettingsScreen() {
       );
     } finally {
       setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleOpenBugReport = async () => {
+    try {
+      await Linking.openURL('https://forms.gle/xJ8YSUDAEsWShJuV8');
+    } catch (error) {
+      Alert.alert(
+        'Не удалось открыть форму',
+        error instanceof Error ? error.message : 'Попробуйте ещё раз.'
+      );
     }
   };
 
@@ -608,135 +591,59 @@ export default function SettingsScreen() {
         >
           {activeProfile ? (
             <>
-              {!editingProfile ? (
-                <View style={styles.profileRow}>
-                  <View style={styles.profileInfo}>
-                    <Text
-                      style={[
-                        styles.profileName,
-                        {
-                          color: theme.text,
-                        },
-                      ]}
-                    >
-                      {activeProfile.name}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.profileDescription,
-                        {
-                          color: theme.secondaryText,
-                        },
-                      ]}
-                    >
-                      {data.words.filter(
-                        (word) =>
-                          word.profileId === activeProfile.id
-                      ).length}{' '}
-                      слов
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.smallButton,
-                      {
-                        borderColor: theme.border,
-                      },
-                    ]}
-                    onPress={handleStartEditing}
-                  >
-                    <Text
-                      style={[
-                        styles.smallButtonText,
-                        {
-                          color: theme.text,
-                        },
-                      ]}
-                    >
-                      Изменить
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View>
+              <View style={styles.profileRow}>
+                <View style={styles.profileInfo}>
                   <Text
                     style={[
-                      styles.inputLabel,
+                      styles.profileName,
+                      {
+                        color: theme.text,
+                      },
+                    ]}
+                  >
+                    {activeProfile.name}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.profileDescription,
                       {
                         color: theme.secondaryText,
                       },
                     ]}
                   >
-                    Название профиля
+                    {data.words.filter(
+                      (word) => word.profileId === activeProfile.id
+                    ).length}{' '}
+                    слов
                   </Text>
+                </View>
 
-                  <TextInput
-                    value={profileName}
-                    onChangeText={setProfileName}
-                    placeholder="Введите название"
-                    placeholderTextColor={
-                      theme.secondaryText
-                    }
+                <TouchableOpacity
+                  style={[
+                    styles.smallButton,
+                    {
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  onPress={() =>
+                    navigation.navigate('Profiles', {
+                      profileId: activeProfile.id,
+                    })
+                  }
+                >
+                  <Text
                     style={[
-                      styles.input,
+                      styles.smallButtonText,
                       {
                         color: theme.text,
-                        backgroundColor: theme.background,
-                        borderColor: theme.border,
                       },
                     ]}
-                    autoFocus
-                  />
-
-                  <View style={styles.editButtons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.cancelButton,
-                        {
-                          borderColor: theme.border,
-                        },
-                      ]}
-                      onPress={() =>
-                        setEditingProfile(false)
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.cancelButtonText,
-                          {
-                            color: theme.text,
-                          },
-                        ]}
-                      >
-                        Отмена
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.saveButton,
-                        {
-                          backgroundColor: theme.primary,
-                        },
-                      ]}
-                      onPress={handleSaveProfile}
-                    >
-                      <Text
-                        style={[
-                          styles.saveButtonText,
-                          {
-                            color: theme.primaryText,
-                          },
-                        ]}
-                      >
-                        Сохранить
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+                  >
+                    Изменить профиль
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 style={[
@@ -768,7 +675,7 @@ export default function SettingsScreen() {
                       },
                     ]}
                   >
-                    Выбрать другой профиль
+                    Выбрать профиль
                   </Text>
                 </View>
 
@@ -1029,6 +936,32 @@ export default function SettingsScreen() {
 
         </View>
 
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Сообщить об ошибке
+        </Text>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Text style={[styles.menuDescription, { color: theme.secondaryText }]}>
+            Помогите улучшить FlashCards — заполните форму сообщения об ошибке.
+          </Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+            onPress={handleOpenBugReport}
+          >
+            <Text style={[styles.primaryButtonText, { color: theme.primaryText }]}>
+              Bug-report FlashCards
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Экспорт и импорт слов и групп профиля (CSV)</Text>
 
         <View
@@ -1270,7 +1203,7 @@ export default function SettingsScreen() {
             },
           ]}
         >
-          Flashcards
+          FlashCards
         </Text>
 
         <Text

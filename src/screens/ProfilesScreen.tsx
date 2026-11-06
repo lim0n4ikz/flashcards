@@ -1,24 +1,29 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  type ScrollViewInstance,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 
 import { useApp } from '../context/AppContext';
 import type { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type ProfilesRouteProp = RouteProp<RootStackParamList, 'Profiles'>;
 
 export default function ProfilesScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<ProfilesRouteProp>();
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
   const [search, setSearch] = useState('');
 
   const {
@@ -27,6 +32,7 @@ export default function ProfilesScreen() {
     activeProfile,
     selectProfile,
     deleteProfile,
+    moveProfile,
   } = useApp();
 
   const filteredProfiles = data.profiles.filter((profile) =>
@@ -41,6 +47,7 @@ export default function ProfilesScreen() {
       ]}
     >
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -54,7 +61,7 @@ export default function ProfilesScreen() {
             { color: theme.secondaryText },
           ]}
         >
-          Выбери профиль для обучения
+          Выбери профиль для обучения. Порядок можно изменить стрелками.
         </Text>
 
         <TouchableOpacity
@@ -96,10 +103,23 @@ export default function ProfilesScreen() {
         ) : (
           filteredProfiles.map((profile) => {
           const isActive = profile.id === activeProfile?.id;
+          const profileIndex = data.profiles.findIndex(
+            (item) => item.id === profile.id
+          );
+          const canMoveUp = profileIndex > 0;
+          const canMoveDown = profileIndex < data.profiles.length - 1;
 
           return (
             <View
               key={profile.id}
+              onLayout={({ nativeEvent }) => {
+                if (profile.id === route.params?.profileId) {
+                  scrollViewRef.current?.scrollTo({
+                    y: nativeEvent.layout.y,
+                    animated: true,
+                  });
+                }
+              }}
               style={[
                 styles.profile,
                 {
@@ -137,31 +157,91 @@ export default function ProfilesScreen() {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => {
-                  Alert.alert(
-                    'Удалить профиль?',
-                    `Профиль «${profile.name}» и все его слова будут удалены.`,
-                    [
-                      { text: 'Отмена', style: 'cancel' },
-                      {
-                        text: 'Удалить',
-                        style: 'destructive',
-                        onPress: () => deleteProfile(profile.id),
-                      },
-                    ]
-                  );
-                }}
-              >
-                <Text
+              <View style={styles.orderButtons}>
+                <TouchableOpacity
+                  accessibilityLabel={`Переместить профиль ${profile.name} выше`}
+                  disabled={!canMoveUp}
+                  onPress={() => moveProfile(profile.id, 'up')}
                   style={[
-                    styles.deleteText,
-                    { color: theme.danger },
+                    styles.orderButton,
+                    { borderColor: theme.border },
+                    !canMoveUp && styles.disabledOrderButton,
                   ]}
                 >
-                  Удалить
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.orderButtonText,
+                      { color: canMoveUp ? theme.primary : theme.secondaryText },
+                    ]}
+                  >
+                    ↑
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityLabel={`Переместить профиль ${profile.name} ниже`}
+                  disabled={!canMoveDown}
+                  onPress={() => moveProfile(profile.id, 'down')}
+                  style={[
+                    styles.orderButton,
+                    { borderColor: theme.border },
+                    !canMoveDown && styles.disabledOrderButton,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.orderButtonText,
+                      { color: canMoveDown ? theme.primary : theme.secondaryText },
+                    ]}
+                  >
+                    ↓
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.profileActions}>
+                <TouchableOpacity
+                  accessibilityLabel={`Редактировать профиль ${profile.name}`}
+                  onPress={() =>
+                    navigation.navigate('ProfileForm', {
+                      profileId: profile.id,
+                    })
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.editText,
+                      { color: theme.primary },
+                    ]}
+                  >
+                    Изменить
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Удалить профиль?',
+                      `Профиль «${profile.name}» и все его слова будут удалены.`,
+                      [
+                        { text: 'Отмена', style: 'cancel' },
+                        {
+                          text: 'Удалить',
+                          style: 'destructive',
+                          onPress: () => deleteProfile(profile.id),
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.deleteText,
+                      { color: theme.danger },
+                    ]}
+                  >
+                    Удалить
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           );
           })
@@ -205,6 +285,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  orderButtons: {
+    gap: 4,
+    marginLeft: 8,
+  },
+
+  profileActions: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+  },
+
+  orderButton: {
+    width: 34,
+    height: 30,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  disabledOrderButton: {
+    opacity: 0.45,
+  },
+
+  orderButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+
   profileInfo: {
     flex: 1,
   },
@@ -234,6 +343,12 @@ const styles = StyleSheet.create({
   },
 
   deleteText: {
+    fontSize: 14,
+    fontWeight: '600',
+    padding: 8,
+  },
+
+  editText: {
     fontSize: 14,
     fontWeight: '600',
     padding: 8,

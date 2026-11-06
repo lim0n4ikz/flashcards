@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -7,26 +8,42 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 
 import { useApp } from '../context/AppContext';
 import type { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type ProfileFormRouteProp = RouteProp<RootStackParamList, 'ProfileForm'>;
 
 export default function ProfileFormScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { theme, createProfile } = useApp();
+  const route = useRoute<ProfileFormRouteProp>();
+  const { theme, data, createProfile, updateProfile } = useApp();
+  const editingProfile = data.profiles.find(
+    (profile) => profile.id === route.params?.profileId
+  );
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(editingProfile?.name ?? '');
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       return;
     }
 
-    await createProfile(name);
+    if (route.params?.profileId) {
+      if (!editingProfile) {
+        Alert.alert('Профиль не найден', 'Он мог быть удален.');
+        navigation.goBack();
+        return;
+      }
+
+      await updateProfile(editingProfile.id, name);
+    } else {
+      await createProfile(name);
+    }
 
     navigation.goBack();
   };
@@ -40,7 +57,7 @@ export default function ProfileFormScreen() {
     >
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
-          Новый профиль
+          {editingProfile ? 'Изменить профиль' : 'Новый профиль'}
         </Text>
 
         <Text
@@ -67,7 +84,7 @@ export default function ProfileFormScreen() {
           ]}
           autoFocus
           returnKeyType="done"
-          onSubmitEditing={handleCreate}
+          onSubmitEditing={handleSave}
         />
 
         <TouchableOpacity
@@ -80,7 +97,7 @@ export default function ProfileFormScreen() {
             },
           ]}
           disabled={!name.trim()}
-          onPress={handleCreate}
+          onPress={handleSave}
         >
           <Text
             style={[
@@ -92,7 +109,7 @@ export default function ProfileFormScreen() {
               },
             ]}
           >
-            Создать профиль
+            {editingProfile ? 'Сохранить изменения' : 'Создать профиль'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -13,8 +13,12 @@ export type RootTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList>;
-  Profiles: undefined;
-  ProfileForm: undefined;
+  Profiles: {
+    profileId?: string;
+  } | undefined;
+  ProfileForm: {
+    profileId?: string;
+  } | undefined;
   WordForm: {
     groupId?: string | null;
     wordId?: string;

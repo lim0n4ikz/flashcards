@@ -8,11 +8,14 @@ import React, {
 import {
   KeyboardAvoidingView,
   Keyboard,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  type ScrollViewInstance,
+  type TextInputInstance,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -33,8 +36,10 @@ type BulkDelimiter = '-' | '=' | ':' | '|';
 export default function WordFormScreen() {
   const navigation = useNavigation();
   const route = useRoute<WordFormRouteProp>();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const russianInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
+  const russianInputRef = useRef<TextInputInstance>(null);
+  const bulkEditorOpenRef = useRef(false);
+  const [isBulkEditorVisible, setIsBulkEditorVisible] = useState(false);
   const scrollToInput = useCallback(() => {
     requestAnimationFrame(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -42,11 +47,17 @@ export default function WordFormScreen() {
   }, []);
 
   useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(scrollToInput, 100);
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      if (!bulkEditorOpenRef.current) {
+        setTimeout(() => {
+          scrollToInput();
+        }, 100);
+      }
     });
 
-    return () => subscription.remove();
+    return () => {
+      showSubscription.remove();
+    };
   }, [scrollToInput]);
 
   const {
@@ -164,8 +175,8 @@ export default function WordFormScreen() {
 
         return [
           {
-            english: match[1].trim(),
-            russian: match[2].trim(),
+            english: match[2].trim(),
+            russian: match[1].trim(),
           },
         ];
       });
@@ -181,6 +192,16 @@ export default function WordFormScreen() {
     if (parsed.length > 0) {
       setBulkWordsText('');
     }
+  };
+
+  const openBulkEditor = () => {
+    bulkEditorOpenRef.current = true;
+    setIsBulkEditorVisible(true);
+  };
+
+  const closeBulkEditor = () => {
+    bulkEditorOpenRef.current = false;
+    setIsBulkEditorVisible(false);
   };
 
   if (!activeProfile) {
@@ -220,7 +241,9 @@ export default function WordFormScreen() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.formScroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
@@ -393,12 +416,12 @@ export default function WordFormScreen() {
         {isSingleFormMode && (
           <>
             <Text style={[styles.label, { color: theme.text }]}>
-              Английское слово
+              Слово, термин или вопрос
             </Text>
             <TextInput
               value={english}
               onChangeText={setEnglish}
-              placeholder="apple"
+              placeholder="Например, термин или вопрос"
               placeholderTextColor={theme.secondaryText}
               autoCapitalize="none"
               returnKeyType="next"
@@ -415,13 +438,13 @@ export default function WordFormScreen() {
               ]}
             />
             <Text style={[styles.label, { color: theme.text }]}>
-              Перевод
+              Перевод, ответ или определение
             </Text>
             <TextInput
               ref={russianInputRef}
               value={russian}
               onChangeText={setRussian}
-              placeholder="яблоко"
+              placeholder="Например, перевод или ответ"
               placeholderTextColor={theme.secondaryText}
               returnKeyType="done"
               onSubmitEditing={handleAdd}
@@ -457,33 +480,16 @@ export default function WordFormScreen() {
 
         {!editingWord && addMode === 'bulk' && (
           <View style={styles.bulkWrap}>
-            <Text style={[styles.bulkTitle, { color: theme.text }]}>Массовый ввод</Text>
             <Text style={[styles.bulkLabel, { color: theme.text }]}>Добавить в группу</Text>
-            <TextInput
-              value={groupSearch}
-              onChangeText={setGroupSearch}
-              onFocus={scrollToInput}
-              placeholder="Поиск групп"
-              placeholderTextColor={theme.secondaryText}
-              style={[
-                styles.groupSearchInput,
-                {
-                  color: theme.text,
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                },
-              ]}
-            />
-            <View style={styles.createGroupRow}>
+            <View style={styles.groupTools}>
               <TextInput
-                value={newGroupName}
-                onChangeText={setNewGroupName}
+                value={groupSearch}
+                onChangeText={setGroupSearch}
                 onFocus={scrollToInput}
-                placeholder="Новая группа"
+                placeholder="Поиск групп"
                 placeholderTextColor={theme.secondaryText}
                 style={[
                   styles.groupSearchInput,
-                  styles.createGroupInput,
                   {
                     color: theme.text,
                     backgroundColor: theme.card,
@@ -491,31 +497,49 @@ export default function WordFormScreen() {
                   },
                 ]}
               />
-              <TouchableOpacity
-                style={[
-                  styles.createGroupButton,
-                  {
-                    backgroundColor: newGroupName.trim()
-                      ? theme.primary
-                      : theme.border,
-                  },
-                ]}
-                disabled={!newGroupName.trim()}
-                onPress={handleCreateGroup}
-              >
-                <Text
-                  style={{
-                    color: newGroupName.trim()
-                      ? theme.primaryText
-                      : theme.secondaryText,
-                    fontWeight: '700',
-                  }}
+              <View style={styles.createGroupRow}>
+                <TextInput
+                  value={newGroupName}
+                  onChangeText={setNewGroupName}
+                  onFocus={scrollToInput}
+                  placeholder="Новая группа"
+                  placeholderTextColor={theme.secondaryText}
+                  style={[
+                    styles.groupSearchInput,
+                    styles.createGroupInput,
+                    {
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  />
+                <TouchableOpacity
+                  style={[
+                    styles.createGroupButton,
+                    {
+                      backgroundColor: newGroupName.trim()
+                        ? theme.primary
+                        : theme.border,
+                    },
+                  ]}
+                  disabled={!newGroupName.trim()}
+                  onPress={handleCreateGroup}
                 >
-                  Создать
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={{
+                      color: newGroupName.trim()
+                        ? theme.primaryText
+                        : theme.secondaryText,
+                      fontWeight: '700',
+                    }}
+                  >
+                    Создать
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.groupWrap}>
               {groupOptions.map((group) => {
                 const isSelected = bulkGroupId === group.id;
 
@@ -542,10 +566,10 @@ export default function WordFormScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </View>
 
             <View style={styles.inputHeader}>
-              <Text style={[styles.bulkHint, { color: theme.secondaryText }]}>Одно слово на строку</Text>
+              <Text style={[styles.bulkHint, { color: theme.secondaryText }]}>Одна пара на строку</Text>
               <View style={styles.delimiterPicker}>
                 <Text style={[styles.delimiterLabel, { color: theme.secondaryText }]}>Разделитель</Text>
                 <View style={styles.delimiterWrap}>
@@ -579,24 +603,37 @@ export default function WordFormScreen() {
               </View>
             </View>
             <Text style={[styles.bulkHintExample, { color: theme.secondaryText }]}>
-              Пример: apple {bulkDelimiter} яблоко
+              Пример: вопрос {bulkDelimiter} ответ
             </Text>
-            <TextInput
-              value={bulkWordsText}
-              onChangeText={setBulkWordsText}
-              onFocus={scrollToInput}
-              placeholder={`apple ${bulkDelimiter} яблоко\nbook ${bulkDelimiter} книга`}
-              placeholderTextColor={theme.secondaryText}
-              multiline
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={openBulkEditor}
               style={[
-                styles.bulkInput,
+                styles.bulkInputPreview,
                 {
-                  color: theme.text,
                   backgroundColor: theme.card,
                   borderColor: theme.border,
                 },
               ]}
-            />
+            >
+              <Text
+                numberOfLines={5}
+                style={[
+                  styles.bulkInputPreviewText,
+                  {
+                    color: bulkWordsText.trim()
+                      ? theme.text
+                      : theme.secondaryText,
+                  },
+                ]}
+              >
+                {bulkWordsText.trim() ||
+                  `Вопрос ${bulkDelimiter} ответ\nТермин ${bulkDelimiter} определение`}
+              </Text>
+              <Text style={[styles.bulkInputEditHint, { color: theme.primary }]}>
+                Нажмите, чтобы открыть редактор
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.addButton,
@@ -640,6 +677,63 @@ export default function WordFormScreen() {
         </TouchableOpacity>
       </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={isBulkEditorVisible}
+        animationType="slide"
+        onRequestClose={closeBulkEditor}
+      >
+        <SafeAreaView
+          style={[
+            styles.bulkEditorContainer,
+            { backgroundColor: theme.background },
+          ]}
+        >
+          <KeyboardAvoidingView
+            style={styles.bulkEditorKeyboardAvoiding}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.bulkEditorHeader}>
+              <Text style={[styles.bulkEditorTitle, { color: theme.text }]}>
+                Список слов
+              </Text>
+              <TouchableOpacity
+                onPress={closeBulkEditor}
+                style={[
+                  styles.bulkEditorDoneButton,
+                  { backgroundColor: theme.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.bulkEditorDoneText,
+                    { color: theme.primaryText },
+                  ]}
+                >
+                  Готово
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              autoFocus
+              value={bulkWordsText}
+              onChangeText={setBulkWordsText}
+              placeholder={`Вопрос ${bulkDelimiter} ответ\nТермин ${bulkDelimiter} определение`}
+              placeholderTextColor={theme.secondaryText}
+              multiline
+              scrollEnabled
+              textAlignVertical="top"
+              style={[
+                styles.bulkEditorInput,
+                {
+                  color: theme.text,
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            />
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -755,15 +849,7 @@ const styles = StyleSheet.create({
   },
 
   bulkWrap: {
-    marginTop: 28,
-    paddingTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: '#D1D5DB',
-  },
-
-  bulkTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    marginTop: 0,
   },
 
   delimiterWrap: {
@@ -813,15 +899,70 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  bulkInput: {
+  bulkInputPreview: {
     minHeight: 110,
+    maxHeight: 180,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+
+  bulkInputPreviewText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+
+  bulkInputEditHint: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+
+  bulkEditorContainer: {
+    flex: 1,
+  },
+
+  bulkEditorKeyboardAvoiding: {
+    flex: 1,
+    padding: 16,
+  },
+
+  bulkEditorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  bulkEditorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+
+  bulkEditorDoneButton: {
+    minHeight: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+
+  bulkEditorDoneText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  bulkEditorInput: {
+    flex: 1,
+    minHeight: 0,
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    textAlignVertical: 'top',
-    marginTop: 8,
+    lineHeight: 22,
   },
 
   bulkLabel: {

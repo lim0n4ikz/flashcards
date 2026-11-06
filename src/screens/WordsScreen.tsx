@@ -35,7 +35,8 @@ export default function WordsScreen() {
   const [filter, setFilter] = useState<FilterMode>(
     route.params?.filter ?? 'all'
   );
-  const [showAllWords, setShowAllWords] = useState(false);
+  const [visibleWordsLimit, setVisibleWordsLimit] =
+    useState(WORDS_PREVIEW_LIMIT);
   const [showAllGroups, setShowAllGroups] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
@@ -107,7 +108,7 @@ export default function WordsScreen() {
   );
 
   useEffect(() => {
-    setShowAllWords(false);
+    setVisibleWordsLimit(WORDS_PREVIEW_LIMIT);
   }, [filter, search, focusedGroupId, ungroupedOnly]);
 
   useEffect(() => {
@@ -116,23 +117,23 @@ export default function WordsScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      setShowAllWords(false);
       setShowAllGroups(false);
 
       return () => {
-        setShowAllWords(false);
         setShowAllGroups(false);
+
+        const state = navigation.getState();
+        if (state.routes[state.index]?.key !== route.key) {
+          setVisibleWordsLimit(WORDS_PREVIEW_LIMIT);
+        }
       };
-    }, [])
+    }, [navigation, route.key])
   );
 
-  const visibleWords = useMemo(() => {
-    if (showAllWords || filteredWords.length <= WORDS_PREVIEW_LIMIT) {
-      return filteredWords;
-    }
-
-    return filteredWords.slice(0, WORDS_PREVIEW_LIMIT);
-  }, [filteredWords, showAllWords]);
+  const visibleWords = useMemo(
+    () => filteredWords.slice(0, visibleWordsLimit),
+    [filteredWords, visibleWordsLimit]
+  );
 
   const filteredGroups = activeProfileWordGroups.filter((group) =>
     group.name.toLowerCase().includes(groupSearch.trim().toLowerCase())
@@ -622,7 +623,12 @@ export default function WordsScreen() {
                   borderColor: filter === item ? theme.primary : theme.border,
                 },
               ]}
-              onPress={() => setFilter(item)}
+              onPress={() => {
+                if (filter !== item) {
+                  setVisibleWordsLimit(WORDS_PREVIEW_LIMIT);
+                  setFilter(item);
+                }
+              }}
             >
               <Text
                 style={[
@@ -798,10 +804,19 @@ export default function WordsScreen() {
                   styles.showAllButton,
                   { backgroundColor: theme.card, borderColor: theme.border },
                 ]}
-                onPress={() => setShowAllWords(true)}
+                onPress={() =>
+                  setVisibleWordsLimit(
+                    (currentLimit) => currentLimit + WORDS_PREVIEW_LIMIT
+                  )
+                }
               >
                 <Text style={[styles.showAllButtonText, { color: theme.primary }]}>
-                  Показать все слова ({filteredWords.length})
+                  Показать ещё слова (
+                  {Math.min(
+                    visibleWords.length + WORDS_PREVIEW_LIMIT,
+                    filteredWords.length
+                  )}{' '}
+                  из {filteredWords.length})
                 </Text>
               </TouchableOpacity>
             )}

@@ -41,7 +41,7 @@ export default function HomeScreen() {
     >
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
-          Flashcards
+          FlashCards
         </Text>
 
         {activeProfile ? (

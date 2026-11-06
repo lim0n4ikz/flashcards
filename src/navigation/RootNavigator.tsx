@@ -172,9 +172,9 @@ export default function RootNavigator() {
         <Stack.Screen
           name="ProfileForm"
           component={ProfileFormScreen}
-          options={{
-            title: 'Новый профиль',
-          }}
+          options={({ route }) => ({
+            title: route.params?.profileId ? 'Изменить профиль' : 'Новый профиль',
+          })}
         />
 
         <Stack.Screen
@@ -196,4 +196,3 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
-
